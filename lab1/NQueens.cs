@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 static class NQueens
 {
     public static void Generate(int n)
     {
         List<Tuple<int, int>> board = [];
+
+        bool[] colsOccupied = new bool[n],
+            diagDown = new bool[2 * n - 1],
+            diagUp = new bool[2 * n - 1];
 
         bool Solve(int row)
         {
@@ -16,12 +21,21 @@ static class NQueens
 
             for (int col = 0; col < n; col++)
             {
-                if (!IsSafe(row, col))
+                // Note: We don't need to check for same row conflicts because our algorithm
+                // places queens row by row, ensuring only one queen per row by design.
+                // The 'board' list only contains queens from previous rows (0 to row-1).
+
+                int downDiag = row + col, upDiag = row - col + n - 1;
+
+                if (colsOccupied[col] || diagDown[downDiag] || diagUp[upDiag])
                 {
                     continue;
                 }
 
                 board.Add(new(row, col));
+                colsOccupied[col] = true;
+                diagDown[downDiag] = true;
+                diagUp[upDiag] = true;
 
                 if (Solve(row + 1))
                 {
@@ -29,28 +43,12 @@ static class NQueens
                 }
 
                 board.RemoveAt(board.Count - 1);
+                colsOccupied[col] = false;
+                diagDown[downDiag] = false;
+                diagUp[upDiag] = false;
             }
 
             return false;
-        }
-
-        bool IsSafe(int row, int col)
-        {
-            // Note: We don't need to check for same row conflicts because our algorithm
-            // places queens row by row, ensuring only one queen per row by design.
-            // The 'board' list only contains queens from previous rows (0 to row-1).
-
-            foreach (Tuple<int, int> pos in board)
-            {
-                (int r, int c) = pos;
-
-                if (c == col || Math.Abs(r - row) == Math.Abs(c - col))
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         if (Solve(0))
@@ -72,14 +70,17 @@ static class NQueens
                 chessboard[pos.Item1, pos.Item2] = 'Q';
             }
 
+            StringBuilder sb = new();
             for (int i = 0; i < n; i++)
             {
                 for (int j = 0; j < n; j++)
                 {
-                    Console.Write($"{chessboard[i, j]} ");
+                    sb.Append($"{chessboard[i, j]} ");
                 }
-                Console.WriteLine();
+                sb.AppendLine();
             }
+
+            Console.Write(sb);
 
             return;
         }
