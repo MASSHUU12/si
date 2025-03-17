@@ -71,41 +71,41 @@ static class NQueens
     private static List<List<(int, int)>> SolveDFS(int n)
     {
         List<List<(int, int)>> solutions = new();
-        List<(int, int)> currentBoard = new();
+        Stack<(List<(int, int)> board, int row, int col)> stack = new();
 
-        // Start the DFS from row 0
-        DFSHelper(n, 0, currentBoard, solutions);
+        stack.Push((new List<(int, int)>(), 0, 0));
 
-        return solutions;
-    }
-
-    private static void DFSHelper(
-        int n,
-        int row,
-        List<(int, int)> currentBoard,
-        List<List<(int, int)>> solutions
-    )
-    {
-        // Base case: If we've placed queens in all rows, we have a solution
-        if (row == n)
+        while (stack.Count > 0)
         {
-            solutions.Add(new(currentBoard));
-            return;
-        }
+            var (board, row, col) = stack.Pop();
 
-        // Try placing a queen in each column of the current row
-        for (int col = 0; col < n; col++)
-        {
-            if (!IsUnderAttack(currentBoard, row, col))
+            if (col >= n) continue;
+
+            if (!IsUnderAttack(board, row, col))
             {
-                // Place the queen and move to the next row
-                currentBoard.Add((row, col));
-                DFSHelper(n, row + 1, currentBoard, solutions);
+                // Create new board with the queen placed
+                List<(int, int)> newBoard = new(board);
+                newBoard.Add((row, col));
 
-                // Backtrack by removing the queen to try other positions
-                currentBoard.RemoveAt(currentBoard.Count - 1);
+                if (row == n - 1)
+                {
+                    solutions.Add(newBoard);
+                }
+                else
+                {
+                    // Push state to try next column (backtracking point)
+                    stack.Push((board, row, col + 1));
+                    stack.Push((newBoard, row + 1, 0));
+                }
+            }
+            else
+            {
+                // Current position is under attack, try next column in the same row
+                stack.Push((board, row, col + 1));
             }
         }
+
+        return solutions;
     }
 
     private static bool IsUnderAttack(List<(int, int)> board, int row, int col)
