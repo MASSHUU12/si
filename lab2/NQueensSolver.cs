@@ -1,7 +1,10 @@
+// #define ENABLE_PRUNING
+
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
+using System.Linq;
 
 static class NQueensSolver
 {
@@ -13,17 +16,19 @@ static class NQueensSolver
 
     public class Statistics
     {
-        public int OpenListCount { get; set; }
+        public int MaxOpenListCount { get; set; }
         public int ClosedListCount { get; set; }
         public TimeSpan ExecutionTime { get; set; }
-        public List<(int, int)>? Solution { get; set; }
+        public List<List<(int, int)>> AllSolutions { get; set; } = [];
+        // Track total states ever added to open list
+        public int TotalStatesEnqueued { get; set; }
     }
 
     public static Statistics Solve(int n, SolveMethod method = SolveMethod.BFS)
     {
-        var stopwatch = Stopwatch.StartNew();
         Statistics statistics = new();
         List<(int, int)> initialState = new();
+        Stopwatch stopwatch = Stopwatch.StartNew();
 
         // Open list
         Queue<List<(int, int)>>? bfsQueue = null;
@@ -40,6 +45,9 @@ static class NQueensSolver
             dfsStack.Push(initialState);
         }
 
+        statistics.MaxOpenListCount = 1;
+        statistics.TotalStatesEnqueued = 1;
+
         // Closed list to track visited states
         HashSet<string> closed = new();
 
@@ -47,10 +55,18 @@ static class NQueensSolver
                (method == SolveMethod.DFS && dfsStack!.Count > 0))
         {
             List<(int, int)> currentState;
+            int currentOpenSize;
+
             if (method == SolveMethod.BFS)
+            {
                 currentState = bfsQueue!.Dequeue();
+                currentOpenSize = bfsQueue.Count;
+            }
             else
+            {
                 currentState = dfsStack!.Pop();
+                currentOpenSize = dfsStack.Count;
+            }
 
             // Convert state to string for closed list tracking
             string stateKey = StateToString(currentState);
@@ -64,25 +80,30 @@ static class NQueensSolver
             // Check if this is a final state (n queens placed with no conflicts)
             if (currentState.Count == n && !HasConflicts(currentState))
             {
-                statistics.Solution = currentState;
-                break;
+                statistics.AllSolutions.Add(new(currentState));
+                continue; // Skip generating children as we've reached a leaf node
             }
 
             List<List<(int, int)>> children = GenerateChildren(currentState, n);
             foreach (var child in children)
             {
+                statistics.TotalStatesEnqueued++;
+
                 if (method == SolveMethod.BFS)
+                {
                     bfsQueue!.Enqueue(child);
+                    statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, bfsQueue.Count);
+                }
                 else
+                {
                     dfsStack!.Push(child);
+                    statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, dfsStack.Count);
+                }
             }
         }
 
         stopwatch.Stop();
 
-        statistics.OpenListCount = method == SolveMethod.BFS
-            ? bfsQueue!.Count
-            : dfsStack!.Count;
         statistics.ClosedListCount = closed.Count;
         statistics.ExecutionTime = stopwatch.Elapsed;
 
@@ -112,10 +133,18 @@ static class NQueensSolver
             List<(int, int)> newState = new(state);
             newState.Add((nextRow, col));
 
+#if PRUNE_CONFLICTS
+            // Only add states without conflicts - this pruning ensures BFS and DFS
+            // will explore the same total number of states, just in different orders
             if (!HasConflicts(newState))
             {
                 children.Add(newState);
             }
+#else
+            // Add all possible queen placements, even those with conflicts
+            // This will cause BFS and DFS to explore different numbers of states
+            children.Add(newState);
+#endif
         }
 
         return children;
@@ -166,22 +195,38 @@ static class NQueensSolver
 
     public static void PrintResults(Statistics stats, int n, SolveMethod method)
     {
-        Console.WriteLine($"\nN-Queens solution for n={n} using {method} approach:");
+        StringBuilder sb = new();
 
-        if (stats.Solution != null)
+        sb.AppendLine($"\nN-Queens solution for n={n} using {method} approach:");
+
+        if (stats.AllSolutions.Count > 0)
         {
-            Console.WriteLine($"\nSolution state: {StateToString(stats.Solution)}");
-            PrintBoard(stats.Solution, n);
+            sb.AppendLine(
+                $"\nFirst solution state: {StateToString(stats.AllSolutions.First())}"
+            );
+            PrintBoard(stats.AllSolutions.First(), n);
         }
         else
         {
-            Console.WriteLine("No solution found!");
+            sb.AppendLine("No solution found!");
         }
 
-        Console.WriteLine("\nStatistics:");
-        Console.WriteLine($"States in Open list: {stats.OpenListCount}");
-        Console.WriteLine($"States in Closed list (checked): {stats.ClosedListCount}");
-        Console.WriteLine($"Execution time: {stats.ExecutionTime.TotalMilliseconds} ms");
+        sb.AppendLine("\nStatistics:");
+        sb.AppendLine($"Total solutions found: {stats.AllSolutions.Count}");
+        sb.AppendLine($"Maximum Open list size: {stats.MaxOpenListCount}");
+        sb.AppendLine($"Total states enqueued: {stats.TotalStatesEnqueued}");
+        sb.AppendLine($"States in Closed list (checked): {stats.ClosedListCount}");
+        sb.AppendLine($"Execution time: {stats.ExecutionTime.TotalMilliseconds} ms");
+
+        Console.WriteLine(sb);
+
+        // Display all solutions
+        // Console.WriteLine("\nAll Solutions:");
+        // for (int i = 0; i < stats.AllSolutions.Count; i++)
+        // {
+        //     Console.WriteLine($"\nSolution {i + 1}:");
+        //     PrintBoard(stats.AllSolutions[i], n);
+        // }
     }
 
     private static void PrintBoard(List<(int, int)> solution, int n)
@@ -213,14 +258,33 @@ static class NQueensSolver
     {
         Console.WriteLine("Running N-Queens experiments...");
 
+#if PRUNE_CONFLICTS
+        Console.WriteLine("Conflict pruning is ENABLED - only generating valid states");
+#else
+        Console.WriteLine("Conflict pruning is DISABLED - generating all possible states");
+        Console.WriteLine("WARNING: This will be much slower and may run out of memory for n > 8");
+        // Adjust maxN to prevent out-of-memory for unpruned search
+        if (maxN > 8)
+        {
+            Console.WriteLine($"Limiting maxN to 8 to prevent out-of-memory errors");
+            maxN = 8;
+        }
+#endif
+
         // Create arrays to store results for plotting
         int[] nValues = new int[maxN - minN + 1];
-        int[] bfsOpenCounts = new int[maxN - minN + 1];
+        int[] bfsMaxOpenCounts = new int[maxN - minN + 1];
+        int[] bfsEnqueuedCounts = new int[maxN - minN + 1];
         int[] bfsClosedCounts = new int[maxN - minN + 1];
         double[] bfsTimes = new double[maxN - minN + 1];
-        int[] dfsOpenCounts = new int[maxN - minN + 1];
+
+        int[] dfsMaxOpenCounts = new int[maxN - minN + 1];
+        int[] dfsEnqueuedCounts = new int[maxN - minN + 1];
         int[] dfsClosedCounts = new int[maxN - minN + 1];
         double[] dfsTimes = new double[maxN - minN + 1];
+
+        int[] bfsSolutionCounts = new int[maxN - minN + 1];
+        int[] dfsSolutionCounts = new int[maxN - minN + 1];
 
         for (int n = minN, i = 0; n <= maxN; n++, i++)
         {
@@ -230,36 +294,56 @@ static class NQueensSolver
             Console.WriteLine("\nRunning BFS...");
             Statistics bfsStats = Solve(n, SolveMethod.BFS);
             PrintResults(bfsStats, n, SolveMethod.BFS);
-            bfsOpenCounts[i] = bfsStats.OpenListCount;
+            bfsMaxOpenCounts[i] = bfsStats.MaxOpenListCount;
+            bfsEnqueuedCounts[i] = bfsStats.TotalStatesEnqueued;
             bfsClosedCounts[i] = bfsStats.ClosedListCount;
             bfsTimes[i] = bfsStats.ExecutionTime.TotalMilliseconds;
+            bfsSolutionCounts[i] = bfsStats.AllSolutions.Count;
 
             Console.WriteLine("\nRunning DFS...");
             Statistics dfsStats = Solve(n, SolveMethod.DFS);
             PrintResults(dfsStats, n, SolveMethod.DFS);
-            dfsOpenCounts[i] = dfsStats.OpenListCount;
+            dfsMaxOpenCounts[i] = dfsStats.MaxOpenListCount;
+            dfsEnqueuedCounts[i] = dfsStats.TotalStatesEnqueued;
             dfsClosedCounts[i] = dfsStats.ClosedListCount;
             dfsTimes[i] = dfsStats.ExecutionTime.TotalMilliseconds;
+            dfsSolutionCounts[i] = dfsStats.AllSolutions.Count;
         }
 
         StringBuilder sb = new();
         sb.AppendLine("\n=== Summary of Results ===");
 
-        const string format = "{0,4} | {1,12} | {2,12} | {3,14} | {4,12} | {5,12} | {6,14}";
+#if PRUNE_CONFLICTS
+        sb.AppendLine("\nNote: With conflict pruning enabled, BFS-Enqueued and DFS-Enqueued are the same because");
+        sb.AppendLine("both algorithms explore the exact same states due to the row-by-row queen placement with pruning.");
+        sb.AppendLine("Similarly, BFS-Closed and DFS-Closed are the same as both algorithms visit");
+        sb.AppendLine("the same unique states, just in a different order.");
+        sb.AppendLine("The primary difference is in MaxOpen (memory usage) and execution time.\n");
+#else
+        sb.AppendLine("\nNote: With conflict pruning disabled, BFS and DFS will explore");
+        sb.AppendLine("substantially different numbers of states. DFS will typically explore");
+        sb.AppendLine("many more states but use less memory (smaller MaxOpen),");
+        sb.AppendLine("while BFS will be more efficient at finding solutions but use more memory.\n");
+#endif
+
+        const string format = "{0,4} | {1,10} | {2,12} | {3,12} | {4,10} | {5,10} | {6,12} | {7,12} | {8,10} | {9,10}";
 
         sb.AppendLine(
             string.Format(
                 format,
                 "n",
-                "BFS-Open",
+                "BFS-Max",
+                "BFS-Enqueued",
                 "BFS-Closed",
-                "BFS-Time(ms)",
-                "DFS-Open",
+                "BFS-Time",
+                "DFS-Max",
+                "DFS-Enqueued",
                 "DFS-Closed",
-                "DFS-Time(ms)"
+                "DFS-Time",
+                "Solutions"
             )
         );
-        sb.AppendLine(new string('-', 98));
+        sb.AppendLine(new string('-', 130));
 
         for (int i = 0; i < nValues.Length; i++)
         {
@@ -267,22 +351,26 @@ static class NQueensSolver
                 string.Format(
                     format,
                     nValues[i],
-                    bfsOpenCounts[i],
+                    bfsMaxOpenCounts[i],
+                    bfsEnqueuedCounts[i],
                     bfsClosedCounts[i],
                     bfsTimes[i].ToString("F2"),
-                    dfsOpenCounts[i],
+                    dfsMaxOpenCounts[i],
+                    dfsEnqueuedCounts[i],
                     dfsClosedCounts[i],
-                    dfsTimes[i].ToString("F2")
+                    dfsTimes[i].ToString("F2"),
+                    bfsSolutionCounts[i]  // BFS and DFS should find the same number of solutions
                 )
             );
         }
 
         sb.AppendLine("\n--- CSV Format for Data Plotting ---");
-        sb.AppendLine("n,BFS-Open,BFS-Closed,BFS-Time(ms),DFS-Open,DFS-Closed,DFS-Time(ms)");
+        sb.AppendLine("n,BFS-Max,BFS-Enqueued,BFS-Closed,BFS-Time,DFS-Max,DFS-Enqueued,DFS-Closed,DFS-Time,Solutions");
 
         for (int i = 0; i < nValues.Length; i++)
         {
-            sb.AppendLine($"{nValues[i]},{bfsOpenCounts[i]},{bfsClosedCounts[i]},{bfsTimes[i]:F2},{dfsOpenCounts[i]},{dfsClosedCounts[i]},{dfsTimes[i]:F2}");
+            sb.AppendLine($"{nValues[i]},{bfsMaxOpenCounts[i]},{bfsEnqueuedCounts[i]},{bfsClosedCounts[i]},{bfsTimes[i]:F2}," +
+                          $"{dfsMaxOpenCounts[i]},{dfsEnqueuedCounts[i]},{dfsClosedCounts[i]},{dfsTimes[i]:F2},{bfsSolutionCounts[i]}");
         }
 
         sb.AppendLine("\nExperiments completed.");
