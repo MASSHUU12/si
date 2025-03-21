@@ -27,9 +27,9 @@ def plot_nqueens_statistics(csv_file):
     bfs_marker = 'o'
     dfs_marker = 's'
 
-    # Plot 1: Open List Size
-    axs[0].plot(data['n'], data['BFS-Open'], color=bfs_color, marker=bfs_marker, label='BFS')
-    axs[0].plot(data['n'], data['DFS-Open'], color=dfs_color, marker=dfs_marker, label='DFS')
+    # Plot 1: Open List Size (now using BFS-Max and DFS-Max)
+    axs[0].plot(data['n'], data['BFS-Max'], color=bfs_color, marker=bfs_marker, label='BFS')
+    axs[0].plot(data['n'], data['DFS-Max'], color=dfs_color, marker=dfs_marker, label='DFS')
     axs[0].set_title('Open List Size vs Number of Queens')
     axs[0].set_xlabel('Number of Queens (n)')
     axs[0].set_ylabel('Open List Size')
@@ -45,12 +45,12 @@ def plot_nqueens_statistics(csv_file):
     axs[1].grid(True)
     axs[1].legend()
 
-    # Plot 3: Execution Time
-    axs[2].plot(data['n'], data['BFS-Time(ms)'], color=bfs_color, marker=bfs_marker, label='BFS')
-    axs[2].plot(data['n'], data['DFS-Time(ms)'], color=dfs_color, marker=dfs_marker, label='DFS')
+    # Plot 3: Execution Time (now using BFS-Time and DFS-Time)
+    axs[2].plot(data['n'], data['BFS-Time'], color=bfs_color, marker=bfs_marker, label='BFS')
+    axs[2].plot(data['n'], data['DFS-Time'], color=dfs_color, marker=dfs_marker, label='DFS')
     axs[2].set_title('Execution Time vs Number of Queens')
     axs[2].set_xlabel('Number of Queens (n)')
-    axs[2].set_ylabel('Execution Time (ms)')
+    axs[2].set_ylabel('Execution Time (seconds)')  # Updated to seconds instead of ms
     axs[2].grid(True)
     axs[2].legend()
 

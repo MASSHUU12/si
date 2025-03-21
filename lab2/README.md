@@ -4,37 +4,45 @@
 
 ## Wnioski
 
+BFS i DFS badają dokładnie tę samą przestrzeń stanów, ale DFS robi to bardziej
+efektywnie pamięciowo i czasowo dla problemu N-Hetmanów. Dla obu algorytmów
+liczba stanów obsłużonych jest identyczna, ale znacząco różni się maksymalny
+rozmiar listy otwartej i wydajność czasowa.
+
 ## Obserwacje
 
-1. Wykładniczy wzrost dla BFS:
-  - BFS Open list: 1 -> 73 711
-  - Lista zamknięta BFS: 16 -> 4,601,179
-  - Czas BFS: 2 ms -> 25 897 ms (~26 sekund)
+1. Wykładniczy wzrost złożoności:
+  - Liczba stanów (BFS/DFS-Enqueued i Closed): 341 -> 19,173,961 (dla n=4 do n=8)
+  - Czas wykonania: kilka milisekund dla n=4, ~26 sekund dla n=8
 
-2. Wydajność dla DFS:
-  - Lista otwarta DFS: 2 -> 43 (niemal liniowy wzrost z n)
-  - Lista zamknięta DFS: waha się, ale pozostaje mała (maksymalnie 262 stany)
-  - Czas DFS: stale poniżej 1,2 ms nawet przy n=13
+2. Różnica w wykorzystaniu pamięci (Max Open List):
+  - BFS: 255 -> 16,777,215 (wykładniczy wzrost)
+  - DFS: 12 -> 56 (niemal liniowy wzrost z n)
 
-3. Luka w wydajności:
-  - Przy n=13, DFS jest około 57 500 razy szybszy niż BFS
-  - Różnica ta rośnie wykładniczo wraz z n
+3. Identyczna liczba wygenerowanych i przetworzonych stanów:
+  - BFS-Enqueued = DFS-Enqueued dla każdego n
+  - BFS-Closed = DFS-Closed dla każdego n
+  - Wynika to z deterministycznego generowania stanów potomnych i identycznego zamkniętego zbioru stanów
+
+4. Wydajność czasowa:
+  - DFS jest ogólnie szybszy, szczególnie dla większych n
+  - Dla n=8: DFS (~18.9s) vs BFS (~25.9s)
 
 ## Słabe strony implementacji
 
 1. Zarządzanie pamięcią:
-  - Brak limitu pamięci na listach otwartych/zamkniętych
-  - W przypadku BFS zużycie pamięci eksploduje przy większych wartościach n.
+  - Brak limitu pamięci na listach otwartych
+  - W przypadku BFS zużycie pamięci eksploduje przy większych wartościach n
   - Tworzenie nowych list stanów dla każdego stanu podrzędnego powoduje znaczną presję na GC
 
 2. Nieefektywna reprezentacja stanów:
-  - Konwersja stanów na ciągi znaków dla zamkniętej listy jest kosztowna.
+  - Konwersja stanów na ciągi znaków dla zamkniętej listy jest kosztowna
   - Pełna reprezentacja tablicy, gdy potrzebne są tylko pozycje królowej
   - Tworzenie nowej listy List<(int,int)> dla każdego stanu powoduje narzut alokacji
 
 3. Brak optymalizacji:
-  - Brak odrzucania oczywiście nieprawidłowych ścieżek
   - Brak wykorzystania symetrii planszy (odbicia/obroty)
+  - BFS i DFS generują i odwiedzają tę samą liczbę stanów
 
 4. Algorytm sprawdzania konfliktów:
   - Sprawdzanie konfliktów O(n²) dla każdego stanu jest nieefektywne.
@@ -43,14 +51,3 @@
 5. Struktura implementacji:
   - Ogólne podejście BFS/DFS nie wykorzystuje specyficznych właściwości N-Queens.
   - Rozmieszczenie wiersz po wierszu mogłoby być bardziej efektywnie zakodowane
-
-DFS znacznie przewyższa BFS,
-ponieważ może szybko znaleźć prawidłową ścieżkę do rozwiązania,
-skupiając się na eksploracji wgłąb.
-Ponieważ wszystkie rozwiązania znajdują się na głębokości N,
-a współczynnik rozgałęzienia zmniejsza się wraz z umieszczaniem większej liczby królowych,
-DFS często znajduje rozwiązanie po zbadaniu tylko niewielkiej części przestrzeni poszukiwań.
-
-BFS musi zbadać wszystkie stany na każdym poziomie przed przejściem głębiej,
-co jest niezwykle nieefektywne dla tego problemu,
-ponieważ zdecydowana większość tych stanów prowadzi do ślepych zaułków.

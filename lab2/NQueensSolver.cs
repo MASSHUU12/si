@@ -1,17 +1,35 @@
-// #define ENABLE_PRUNING
-
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
 using System.Linq;
 
-static class NQueensSolver
+class NQueensSolver
 {
+    private int n;
+    private SolveMethod method;
+    private PruningLevel pruningLevel;
+    private SolutionMode solutionMode;
+    private Statistics statistics;
+
     public enum SolveMethod
     {
         BFS,
         DFS
+    }
+
+    public enum PruningLevel
+    {
+        None,       // No pruning at all
+        Minimal,    // Only check for obvious column conflicts
+        Partial,    // Check all conflicts during generation but not during processing
+        Full        // Check conflicts at both generation and processing
+    }
+
+    public enum SolutionMode
+    {
+        First,      // Find only the first solution
+        All         // Find all possible solutions
     }
 
     public class Statistics
@@ -24,9 +42,22 @@ static class NQueensSolver
         public int TotalStatesEnqueued { get; set; }
     }
 
-    public static Statistics Solve(int n, SolveMethod method = SolveMethod.BFS)
+    public NQueensSolver(
+        int n,
+        SolveMethod method = SolveMethod.BFS,
+        PruningLevel pruningLevel = PruningLevel.Full,
+        SolutionMode solutionMode = SolutionMode.All
+    )
     {
-        Statistics statistics = new();
+        this.n = n;
+        this.method = method;
+        this.pruningLevel = pruningLevel;
+        this.solutionMode = solutionMode;
+        this.statistics = new();
+    }
+
+    public Statistics Solve()
+    {
         List<(int, int)> initialState = new();
         Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -34,7 +65,7 @@ static class NQueensSolver
         Queue<List<(int, int)>>? bfsQueue = null;
         Stack<List<(int, int)>>? dfsStack = null;
 
-        if (method == SolveMethod.BFS)
+        if (this.method == SolveMethod.BFS)
         {
             bfsQueue = new();
             bfsQueue.Enqueue(initialState);
@@ -45,8 +76,8 @@ static class NQueensSolver
             dfsStack.Push(initialState);
         }
 
-        statistics.MaxOpenListCount = 1;
-        statistics.TotalStatesEnqueued = 1;
+        this.statistics.MaxOpenListCount = 1;
+        this.statistics.TotalStatesEnqueued = 1;
 
         // Closed list to track visited states
         HashSet<string> closed = new();
@@ -55,17 +86,16 @@ static class NQueensSolver
                (method == SolveMethod.DFS && dfsStack!.Count > 0))
         {
             List<(int, int)> currentState;
-            int currentOpenSize;
 
             if (method == SolveMethod.BFS)
             {
                 currentState = bfsQueue!.Dequeue();
-                currentOpenSize = bfsQueue.Count;
+                statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, bfsQueue.Count);
             }
             else
             {
                 currentState = dfsStack!.Pop();
-                currentOpenSize = dfsStack.Count;
+                statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, dfsStack.Count);
             }
 
             // Convert state to string for closed list tracking
@@ -78,42 +108,51 @@ static class NQueensSolver
             closed.Add(stateKey);
 
             // Check if this is a final state (n queens placed with no conflicts)
-            if (currentState.Count == n && !HasConflicts(currentState))
+            if (currentState.Count == n)
             {
-                statistics.AllSolutions.Add(new(currentState));
+                if (!HasConflicts(currentState))
+                {
+                    this.statistics.AllSolutions.Add(new(currentState));
+
+                    // Stop after finding the first solution if in First mode
+                    if (this.solutionMode == SolutionMode.First)
+                    {
+                        break;
+                    }
+                }
                 continue; // Skip generating children as we've reached a leaf node
             }
 
-            if (HasConflicts(currentState))
+            if (pruningLevel == PruningLevel.Full && HasConflicts(currentState))
+            {
                 continue;
+            }
 
-            List<List<(int, int)>> children = GenerateChildren(currentState, n);
+            List<List<(int, int)>> children = GenerateChildren(currentState);
             foreach (var child in children)
             {
-                statistics.TotalStatesEnqueued++;
+                this.statistics.TotalStatesEnqueued++;
 
                 if (method == SolveMethod.BFS)
                 {
                     bfsQueue!.Enqueue(child);
-                    statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, bfsQueue.Count);
                 }
                 else
                 {
                     dfsStack!.Push(child);
-                    statistics.MaxOpenListCount = Math.Max(statistics.MaxOpenListCount, dfsStack.Count);
                 }
             }
         }
 
         stopwatch.Stop();
 
-        statistics.ClosedListCount = closed.Count;
-        statistics.ExecutionTime = stopwatch.Elapsed;
+        this.statistics.ClosedListCount = closed.Count;
+        this.statistics.ExecutionTime = stopwatch.Elapsed;
 
-        return statistics;
+        return this.statistics;
     }
 
-    private static List<List<(int, int)>> GenerateChildren(List<(int, int)> state, int n)
+    private List<List<(int, int)>> GenerateChildren(List<(int, int)> state)
     {
         List<List<(int, int)>> children = new();
 
@@ -136,24 +175,52 @@ static class NQueensSolver
             List<(int, int)> newState = new(state);
             newState.Add((nextRow, col));
 
-#if ENABLE_PRUNING
-            // Only add states without conflicts - this pruning ensures BFS and DFS
-            // will explore the same total number of states, just in different orders
-            if (!HasConflicts(newState))
+            bool shouldAdd = true;
+
+            // Apply different pruning strategies
+            if (pruningLevel == PruningLevel.Full || pruningLevel == PruningLevel.Partial)
+            {
+                // Full conflict checking for full and partial pruning
+                if (HasConflicts(newState))
+                {
+                    shouldAdd = false;
+                }
+            }
+            else if (pruningLevel == PruningLevel.Minimal)
+            {
+                // Only check for obvious column conflicts (much faster than full checking)
+                if (HasColumnConflict(newState))
+                {
+                    shouldAdd = false;
+                }
+            }
+
+            // For None pruning level, add all states
+            if (shouldAdd)
             {
                 children.Add(newState);
             }
-#else
-            // Add all possible queen placements, even those with conflicts
-            // This will cause BFS and DFS to explore different numbers of states
-            children.Add(newState);
-#endif
         }
 
         return children;
     }
 
-    private static bool HasConflicts(List<(int, int)> board)
+    private bool HasColumnConflict(List<(int, int)> board)
+    {
+        int n = board.Count;
+        var (newRow, newCol) = board[n - 1]; // Get the last added queen
+
+        for (int i = 0; i < n - 1; i++)
+        {
+            var (_, col) = board[i];
+            if (newCol == col)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasConflicts(List<(int, int)> board)
     {
         int n = board.Count;
         for (int i = 0; i < n - 1; i++)
@@ -177,7 +244,7 @@ static class NQueensSolver
         return false;
     }
 
-    private static string StateToString(List<(int, int)> state)
+    private string StateToString(List<(int, int)> state)
     {
         if (state.Count == 0)
             return "[]";
@@ -196,18 +263,23 @@ static class NQueensSolver
         return sb.ToString();
     }
 
-    public static void PrintResults(Statistics stats, int n, SolveMethod method)
+    public void PrintResults()
     {
         StringBuilder sb = new();
 
-        sb.AppendLine($"\nN-Queens solution for n={n} using {method} approach:");
+        string modeText = this.solutionMode == SolutionMode.First
+            ? "finding first solution"
+            : "finding all solutions";
+        sb.AppendLine(
+            $"\nN-Queens solution for n={this.n} using {this.method} with {this.pruningLevel} pruning, {modeText}:"
+        );
 
-        if (stats.AllSolutions.Count > 0)
+        if (this.statistics.AllSolutions.Count > 0)
         {
             sb.AppendLine(
-                $"\nFirst solution state: {StateToString(stats.AllSolutions.First())}"
+                $"\nFirst solution state: {StateToString(this.statistics.AllSolutions.First())}"
             );
-            PrintBoard(stats.AllSolutions.First(), n);
+            PrintBoard(this.statistics.AllSolutions.First());
         }
         else
         {
@@ -215,24 +287,16 @@ static class NQueensSolver
         }
 
         sb.AppendLine("\nStatistics:");
-        sb.AppendLine($"Total solutions found: {stats.AllSolutions.Count}");
-        sb.AppendLine($"Maximum Open list size: {stats.MaxOpenListCount}");
-        sb.AppendLine($"Total states enqueued: {stats.TotalStatesEnqueued}");
-        sb.AppendLine($"States in Closed list (checked): {stats.ClosedListCount}");
-        sb.AppendLine($"Execution time: {stats.ExecutionTime.TotalMilliseconds} ms");
+        sb.AppendLine($"Total solutions found: {this.statistics.AllSolutions.Count}");
+        sb.AppendLine($"Maximum Open list size: {this.statistics.MaxOpenListCount}");
+        sb.AppendLine($"Total states enqueued: {this.statistics.TotalStatesEnqueued}");
+        sb.AppendLine($"States in Closed list (checked): {this.statistics.ClosedListCount}");
+        sb.AppendLine($"Execution time: {this.statistics.ExecutionTime.TotalMilliseconds} ms");
 
         Console.WriteLine(sb);
-
-        // Display all solutions
-        // Console.WriteLine("\nAll Solutions:");
-        // for (int i = 0; i < stats.AllSolutions.Count; i++)
-        // {
-        //     Console.WriteLine($"\nSolution {i + 1}:");
-        //     PrintBoard(stats.AllSolutions[i], n);
-        // }
     }
 
-    private static void PrintBoard(List<(int, int)> solution, int n)
+    private void PrintBoard(List<(int, int)> solution)
     {
         StringBuilder sb = new();
         char[,] board = new char[n, n];
@@ -257,15 +321,18 @@ static class NQueensSolver
         Console.WriteLine(sb);
     }
 
-    public static void RunExperiments(int minN = 4, int maxN = 12)
+    public static void RunExperiments(
+        int minN = 4,
+        int maxN = 12,
+        PruningLevel pruningLevel = PruningLevel.Full,
+        SolutionMode solutionMode = SolutionMode.All
+    )
     {
         Console.WriteLine("Running N-Queens experiments...");
-
-#if ENABLE_PRUNING
-        Console.WriteLine("Conflict pruning is ENABLED - only generating valid states");
-#else
-        Console.WriteLine("Conflict pruning is DISABLED - generating all possible states");
-#endif
+        string modeText = solutionMode == SolutionMode.First
+            ? "finding first solution only"
+            : "finding all solutions";
+        Console.WriteLine($"Solution mode: {modeText}");
 
         // Create arrays to store results for plotting
         int[] nValues = new int[maxN - minN + 1];
@@ -288,8 +355,9 @@ static class NQueensSolver
             nValues[i] = n;
 
             Console.WriteLine("\nRunning BFS...");
-            Statistics bfsStats = Solve(n, SolveMethod.BFS);
-            PrintResults(bfsStats, n, SolveMethod.BFS);
+            NQueensSolver bfsSolver = new(n, SolveMethod.BFS, pruningLevel);
+            Statistics bfsStats = bfsSolver.Solve();
+            bfsSolver.PrintResults();
             bfsMaxOpenCounts[i] = bfsStats.MaxOpenListCount;
             bfsEnqueuedCounts[i] = bfsStats.TotalStatesEnqueued;
             bfsClosedCounts[i] = bfsStats.ClosedListCount;
@@ -297,8 +365,9 @@ static class NQueensSolver
             bfsSolutionCounts[i] = bfsStats.AllSolutions.Count;
 
             Console.WriteLine("\nRunning DFS...");
-            Statistics dfsStats = Solve(n, SolveMethod.DFS);
-            PrintResults(dfsStats, n, SolveMethod.DFS);
+            NQueensSolver dfsSolver = new(n, SolveMethod.DFS, pruningLevel);
+            Statistics dfsStats = dfsSolver.Solve();
+            dfsSolver.PrintResults();
             dfsMaxOpenCounts[i] = dfsStats.MaxOpenListCount;
             dfsEnqueuedCounts[i] = dfsStats.TotalStatesEnqueued;
             dfsClosedCounts[i] = dfsStats.ClosedListCount;
@@ -308,19 +377,6 @@ static class NQueensSolver
 
         StringBuilder sb = new();
         sb.AppendLine("\n=== Summary of Results ===");
-
-#if ENABLE_PRUNING
-        sb.AppendLine("\nNote: With conflict pruning enabled, BFS-Enqueued and DFS-Enqueued are the same because");
-        sb.AppendLine("both algorithms explore the exact same states due to the row-by-row queen placement with pruning.");
-        sb.AppendLine("Similarly, BFS-Closed and DFS-Closed are the same as both algorithms visit");
-        sb.AppendLine("the same unique states, just in a different order.");
-        sb.AppendLine("The primary difference is in MaxOpen (memory usage) and execution time.\n");
-#else
-        sb.AppendLine("\nNote: With conflict pruning disabled, BFS and DFS will explore");
-        sb.AppendLine("substantially different numbers of states. DFS will typically explore");
-        sb.AppendLine("many more states but use less memory (smaller MaxOpen),");
-        sb.AppendLine("while BFS will be more efficient at finding solutions but use more memory.\n");
-#endif
 
         const string format = "{0,4} | {1,10} | {2,12} | {3,12} | {4,10} | {5,10} | {6,12} | {7,12} | {8,10} | {9,10}";
 
@@ -355,7 +411,7 @@ static class NQueensSolver
                     dfsEnqueuedCounts[i],
                     dfsClosedCounts[i],
                     dfsTimes[i].ToString("F2"),
-                    bfsSolutionCounts[i]  // BFS and DFS should find the same number of solutions
+                    solutionMode == SolutionMode.First ? "1" : bfsSolutionCounts[i].ToString()
                 )
             );
         }
@@ -366,7 +422,8 @@ static class NQueensSolver
         for (int i = 0; i < nValues.Length; i++)
         {
             sb.AppendLine($"{nValues[i]},{bfsMaxOpenCounts[i]},{bfsEnqueuedCounts[i]},{bfsClosedCounts[i]},{bfsTimes[i]:F2}," +
-                          $"{dfsMaxOpenCounts[i]},{dfsEnqueuedCounts[i]},{dfsClosedCounts[i]},{dfsTimes[i]:F2},{bfsSolutionCounts[i]}");
+                          $"{dfsMaxOpenCounts[i]},{dfsEnqueuedCounts[i]},{dfsClosedCounts[i]},{dfsTimes[i]:F2}," +
+                          $"{(solutionMode == SolutionMode.First ? "1" : bfsSolutionCounts[i].ToString())}");
         }
 
         sb.AppendLine("\nExperiments completed.");
