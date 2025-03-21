@@ -84,6 +84,9 @@ static class NQueensSolver
                 continue; // Skip generating children as we've reached a leaf node
             }
 
+            if (HasConflicts(currentState))
+                continue;
+
             List<List<(int, int)>> children = GenerateChildren(currentState, n);
             foreach (var child in children)
             {
@@ -133,7 +136,7 @@ static class NQueensSolver
             List<(int, int)> newState = new(state);
             newState.Add((nextRow, col));
 
-#if PRUNE_CONFLICTS
+#if ENABLE_PRUNING
             // Only add states without conflicts - this pruning ensures BFS and DFS
             // will explore the same total number of states, just in different orders
             if (!HasConflicts(newState))
@@ -258,17 +261,10 @@ static class NQueensSolver
     {
         Console.WriteLine("Running N-Queens experiments...");
 
-#if PRUNE_CONFLICTS
+#if ENABLE_PRUNING
         Console.WriteLine("Conflict pruning is ENABLED - only generating valid states");
 #else
         Console.WriteLine("Conflict pruning is DISABLED - generating all possible states");
-        Console.WriteLine("WARNING: This will be much slower and may run out of memory for n > 8");
-        // Adjust maxN to prevent out-of-memory for unpruned search
-        if (maxN > 8)
-        {
-            Console.WriteLine($"Limiting maxN to 8 to prevent out-of-memory errors");
-            maxN = 8;
-        }
 #endif
 
         // Create arrays to store results for plotting
@@ -313,7 +309,7 @@ static class NQueensSolver
         StringBuilder sb = new();
         sb.AppendLine("\n=== Summary of Results ===");
 
-#if PRUNE_CONFLICTS
+#if ENABLE_PRUNING
         sb.AppendLine("\nNote: With conflict pruning enabled, BFS-Enqueued and DFS-Enqueued are the same because");
         sb.AppendLine("both algorithms explore the exact same states due to the row-by-row queen placement with pruning.");
         sb.AppendLine("Similarly, BFS-Closed and DFS-Closed are the same as both algorithms visit");
