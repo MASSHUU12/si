@@ -11,6 +11,7 @@ class NQueensSolver
     private PruningLevel pruningLevel;
     private SolutionMode solutionMode;
     private Statistics statistics;
+    private Heuristic heuristic;
 
     public enum SolveMethod
     {
@@ -33,6 +34,12 @@ class NQueensSolver
         All         // Find all possible solutions
     }
 
+    public enum Heuristic
+    {
+        H1,
+        H2
+    }
+
     public class Statistics
     {
         public int MaxOpenListCount { get; set; }
@@ -47,13 +54,15 @@ class NQueensSolver
         int n,
         SolveMethod method = SolveMethod.BFS,
         PruningLevel pruningLevel = PruningLevel.Full,
-        SolutionMode solutionMode = SolutionMode.All
+        SolutionMode solutionMode = SolutionMode.All,
+        Heuristic heuristic = Heuristic.H1
     )
     {
         this.n = n;
         this.method = method;
         this.pruningLevel = pruningLevel;
         this.solutionMode = solutionMode;
+        this.heuristic = heuristic;
         this.statistics = new();
     }
 
@@ -115,7 +124,6 @@ class NQueensSolver
                     throw new("UNREACHABLE");
             }
 
-            // Convert state to string for closed list tracking
             string stateKey = StateToString(currentState);
 
             // Skip if already processed
@@ -230,8 +238,40 @@ class NQueensSolver
 
     private int EvaluateState(List<(int, int)> state)
     {
-        // Evaluation function for best-first search: minimize conflicts
-        int conflicts = 0;
+        return heuristic switch
+        {
+            Heuristic.H1 => EvaluateH1(state),
+            Heuristic.H2 => EvaluateH2(state),
+            _ => throw new("UNREACHABLE")
+        };
+    }
+
+    private int EvaluateH1(List<(int, int)> state)
+    {
+        int l = state.Count;
+        int sumWrow = 0;
+
+        for (int i = 0; i < l; i++)
+        {
+            int row = state[i].Item1 + 1; // Convert zero-indexed to one-indexed
+            int wrow = (row <= n / 2) ? (n - row + 1) : row;
+            sumWrow += wrow;
+        }
+
+        return (n - l) * sumWrow;
+    }
+
+    private int EvaluateH2(List<(int, int)> state)
+    {
+        int l = state.Count;
+        int attackCount = CountAttacks(state);
+
+        return attackCount + (n - l);
+    }
+
+    private int CountAttacks(List<(int, int)> state)
+    {
+        int attackCount = 0;
 
         for (int i = 0; i < state.Count; i++)
         {
@@ -246,12 +286,12 @@ class NQueensSolver
                     row1 + col1 == row2 + col2 || // Same rising diagonal
                     row1 - col1 == row2 - col2)   // Same falling diagonal
                 {
-                    conflicts++;
+                    attackCount++;
                 }
             }
         }
 
-        return conflicts;
+        return attackCount;
     }
 
     private bool HasColumnConflict(List<(int, int)> board)
@@ -271,26 +311,7 @@ class NQueensSolver
 
     private bool HasConflicts(List<(int, int)> board)
     {
-        int n = board.Count;
-        for (int i = 0; i < n - 1; i++)
-        {
-            var (row1, col1) = board[i];
-
-            for (int j = i + 1; j < n; j++)
-            {
-                var (row2, col2) = board[j];
-
-                if (col1 == col2 ||               // Same column
-                    row1 == row2 ||               // Same row
-                    row1 + col1 == row2 + col2 || // Same rising diagonal
-                    row1 - col1 == row2 - col2)   // Same falling diagonal
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return CountAttacks(board) > 0;
     }
 
     private string StateToString(List<(int, int)> state)
@@ -370,6 +391,87 @@ class NQueensSolver
         Console.WriteLine(sb);
     }
 
+    private static Statistics RunSingleExperiment(
+        int n,
+        SolveMethod method,
+        PruningLevel pruningLevel,
+        SolutionMode solutionMode,
+        Heuristic heuristic
+    )
+    {
+        NQueensSolver solver = new(n, method, pruningLevel, solutionMode, heuristic);
+        Statistics stats = solver.Solve();
+        solver.PrintResults();
+        return stats;
+    }
+
+    private static void PrintSummaryHeader(StringBuilder sb)
+    {
+        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8}";
+        sb.AppendLine(
+            string.Format(
+                format,
+                "n",
+                "BFS-Max",
+                "BFS-Enq",
+                "BFS-Cls",
+                "BFS-T",
+                "DFS-Max",
+                "DFS-Enq",
+                "DFS-Cls",
+                "DFS-T",
+                "BH1-Max",
+                "BH1-Enq",
+                "BH1-Cls",
+                "BH1-T",
+                "BH2-Max",
+                "BH2-Enq",
+                "BH2-Cls",
+                "BH2-T",
+                "Sol"
+            )
+        );
+        sb.AppendLine(new string('-', 196));
+    }
+
+    private static void PrintSummaryRow(
+        StringBuilder sb,
+        int n,
+        Statistics bfsStats,
+        Statistics dfsStats,
+        Statistics bestFirstStatsH1,
+        Statistics bestFirstStatsH2,
+        SolutionMode solutionMode
+    )
+    {
+        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8}";
+        sb.AppendLine(
+            string.Format(
+                format,
+                n,
+                bfsStats.MaxOpenListCount,
+                bfsStats.TotalStatesEnqueued,
+                bfsStats.ClosedListCount,
+                bfsStats.ExecutionTime.TotalMilliseconds.ToString("F2"),
+                dfsStats.MaxOpenListCount,
+                dfsStats.TotalStatesEnqueued,
+                dfsStats.ClosedListCount,
+                dfsStats.ExecutionTime.TotalMilliseconds.ToString("F2"),
+                bestFirstStatsH1.MaxOpenListCount,
+                bestFirstStatsH1.TotalStatesEnqueued,
+                bestFirstStatsH1.ClosedListCount,
+                bestFirstStatsH1.ExecutionTime.TotalMilliseconds.ToString("F2"),
+                bestFirstStatsH2.MaxOpenListCount,
+                bestFirstStatsH2.TotalStatesEnqueued,
+                bestFirstStatsH2.ClosedListCount,
+                bestFirstStatsH2.ExecutionTime.TotalMilliseconds.ToString("F2"),
+                solutionMode == SolutionMode.First
+                    ? "1"
+                    : bfsStats.AllSolutions.Count.ToString()
+            )
+        );
+    }
+
     public static void RunExperiments(
         int minN = 4,
         int maxN = 12,
@@ -383,124 +485,68 @@ class NQueensSolver
             : "finding all solutions";
         Console.WriteLine($"Solution mode: {modeText}");
 
-        // Create arrays to store results for plotting
-        int[] nValues = new int[maxN - minN + 1];
-        int[] bfsMaxOpenCounts = new int[maxN - minN + 1];
-        int[] bfsEnqueuedCounts = new int[maxN - minN + 1];
-        int[] bfsClosedCounts = new int[maxN - minN + 1];
-        double[] bfsTimes = new double[maxN - minN + 1];
+        StringBuilder summary = new();
+        PrintSummaryHeader(summary);
 
-        int[] dfsMaxOpenCounts = new int[maxN - minN + 1];
-        int[] dfsEnqueuedCounts = new int[maxN - minN + 1];
-        int[] dfsClosedCounts = new int[maxN - minN + 1];
-        double[] dfsTimes = new double[maxN - minN + 1];
+        List<int> nValues = [];
+        List<Statistics> bfsStatsList = [],
+            dfsStatsList = [],
+            bestFirstStatsH1List = [],
+            bestFirstStatsH2List = [];
 
-        int[] bestFirstMaxOpenCounts = new int[maxN - minN + 1];
-        int[] bestFirstEnqueuedCounts = new int[maxN - minN + 1];
-        int[] bestFirstClosedCounts = new int[maxN - minN + 1];
-        double[] bestFirstTimes = new double[maxN - minN + 1];
-
-        int[] bfsSolutionCounts = new int[maxN - minN + 1];
-        int[] dfsSolutionCounts = new int[maxN - minN + 1];
-        int[] bestFirstSolutionCounts = new int[maxN - minN + 1];
-
-        for (int n = minN, i = 0; n <= maxN; n++, i++)
+        for (int n = minN; n <= maxN; n++)
         {
             Console.WriteLine($"\n=== Testing n = {n} ===");
-            nValues[i] = n;
 
-            Console.WriteLine("\nRunning BFS...");
-            NQueensSolver bfsSolver = new(n, SolveMethod.BFS, pruningLevel);
-            Statistics bfsStats = bfsSolver.Solve();
-            bfsSolver.PrintResults();
-            bfsMaxOpenCounts[i] = bfsStats.MaxOpenListCount;
-            bfsEnqueuedCounts[i] = bfsStats.TotalStatesEnqueued;
-            bfsClosedCounts[i] = bfsStats.ClosedListCount;
-            bfsTimes[i] = bfsStats.ExecutionTime.TotalMilliseconds;
-            bfsSolutionCounts[i] = bfsStats.AllSolutions.Count;
-
-            Console.WriteLine("\nRunning DFS...");
-            NQueensSolver dfsSolver = new(n, SolveMethod.DFS, pruningLevel);
-            Statistics dfsStats = dfsSolver.Solve();
-            dfsSolver.PrintResults();
-            dfsMaxOpenCounts[i] = dfsStats.MaxOpenListCount;
-            dfsEnqueuedCounts[i] = dfsStats.TotalStatesEnqueued;
-            dfsClosedCounts[i] = dfsStats.ClosedListCount;
-            dfsTimes[i] = dfsStats.ExecutionTime.TotalMilliseconds;
-            dfsSolutionCounts[i] = dfsStats.AllSolutions.Count;
-
-            Console.WriteLine("\nRunning Best-First Search...");
-            NQueensSolver bestFirstSolver = new(n, SolveMethod.BestFirst, pruningLevel, solutionMode);
-            Statistics bestFirstStats = bestFirstSolver.Solve();
-            bestFirstSolver.PrintResults();
-            bestFirstMaxOpenCounts[i] = bestFirstStats.MaxOpenListCount;
-            bestFirstEnqueuedCounts[i] = bestFirstStats.TotalStatesEnqueued;
-            bestFirstClosedCounts[i] = bestFirstStats.ClosedListCount;
-            bestFirstTimes[i] = bestFirstStats.ExecutionTime.TotalMilliseconds;
-            bestFirstSolutionCounts[i] = bestFirstStats.AllSolutions.Count;
-        }
-
-        StringBuilder sb = new();
-        sb.AppendLine("\n=== Summary of Results ===");
-
-        const string format = "{0,2} | {1,10} | {2,10} | {3,10} | {4,10} | {5,10} | {6,10} | {7,10} | {8,10} | {9,10} | {10,10} | {11,10} | {12,10} | {13,10}";
-
-        sb.AppendLine(
-            string.Format(
-                format,
-                "n",
-                "BFS-Max",
-                "BFS-Enqueued",
-                "BFS-Closed",
-                "BFS-Time",
-                "DFS-Max",
-                "DFS-Enqueued",
-                "DFS-Closed",
-                "DFS-Time",
-                "BestFirst-Max",
-                "BestFirst-Enqueued",
-                "BestFirst-Closed",
-                "BestFirst-Time",
-                "Solutions"
-            )
-        );
-        sb.AppendLine(new string('-', 200));
-
-        for (int i = 0; i < nValues.Length; i++)
-        {
-            sb.AppendLine(
-                string.Format(
-                    format,
-                    nValues[i],
-                    bfsMaxOpenCounts[i],
-                    bfsEnqueuedCounts[i],
-                    bfsClosedCounts[i],
-                    bfsTimes[i].ToString("F2"),
-                    dfsMaxOpenCounts[i],
-                    dfsEnqueuedCounts[i],
-                    dfsClosedCounts[i],
-                    dfsTimes[i].ToString("F2"),
-                    bestFirstMaxOpenCounts[i],
-                    bestFirstEnqueuedCounts[i],
-                    bestFirstClosedCounts[i],
-                    bestFirstTimes[i].ToString("F2"),
-                    solutionMode == SolutionMode.First ? "1" : bfsSolutionCounts[i].ToString()
-                )
+            Statistics bfsStats = RunSingleExperiment(
+                n,
+                SolveMethod.BFS,
+                pruningLevel,
+                solutionMode
             );
+            Statistics dfsStats = RunSingleExperiment(
+                n,
+                SolveMethod.DFS,
+                pruningLevel,
+                solutionMode
+            );
+            Statistics bestFirstStatsH1 = RunSingleExperiment(
+                n,
+                SolveMethod.BestFirst,
+                pruningLevel,
+                solutionMode,
+                Heuristic.H1
+            );
+            Statistics bestFirstStatsH2 = RunSingleExperiment(
+                n,
+                SolveMethod.BestFirst,
+                pruningLevel,
+                solutionMode,
+                Heuristic.H2
+            );
+
+            nValues.Add(n);
+            bfsStatsList.Add(bfsStats);
+            dfsStatsList.Add(dfsStats);
+            bestFirstStatsH1List.Add(bestFirstStatsH1);
+            bestFirstStatsH2List.Add(bestFirstStatsH2);
+
+            PrintSummaryRow(summary, n, bfsStats, dfsStats, bestFirstStatsH1, bestFirstStatsH2, solutionMode);
         }
 
-        sb.AppendLine("\n--- CSV Format for Data Plotting ---");
-        sb.AppendLine("n,BFS-Max,BFS-Enqueued,BFS-Closed,BFS-Time,DFS-Max,DFS-Enqueued,DFS-Closed,DFS-Time,BestFirst-Max,BestFirst-Enqueued,BestFirst-Closed,BestFirst-Time,Solutions");
+        summary.AppendLine("\n--- CSV Format ---");
+        summary.AppendLine("n,BFS-Max,BFS-Enq,BFS-Cls,BFS-T,DFS-Max,DFS-Enq,DFS-Cls,DFS-T,BH1-Max,BH1-Enq,BH1-Cls,BH1-T,BH2-Max,BH2-Enq,BH2-Cls,BH2-T,Sol");
 
-        for (int i = 0; i < nValues.Length; i++)
+        for (int i = 0; i < nValues.Count; i++)
         {
-            sb.AppendLine($"{nValues[i]},{bfsMaxOpenCounts[i]},{bfsEnqueuedCounts[i]},{bfsClosedCounts[i]},{bfsTimes[i]:F2}," +
-                          $"{dfsMaxOpenCounts[i]},{dfsEnqueuedCounts[i]},{dfsClosedCounts[i]},{dfsTimes[i]:F2}," +
-                          $"{bestFirstMaxOpenCounts[i]},{bestFirstEnqueuedCounts[i]},{bestFirstClosedCounts[i]},{bestFirstTimes[i]:F2}," +
-                          $"{(solutionMode == SolutionMode.First ? "1" : bfsSolutionCounts[i].ToString())}");
+            summary.AppendLine($"{nValues[i]},{bfsStatsList[i].MaxOpenListCount},{bfsStatsList[i].TotalStatesEnqueued},{bfsStatsList[i].ClosedListCount},{bfsStatsList[i].ExecutionTime.TotalMilliseconds:F2}," +
+                $"{dfsStatsList[i].MaxOpenListCount},{dfsStatsList[i].TotalStatesEnqueued},{dfsStatsList[i].ClosedListCount},{dfsStatsList[i].ExecutionTime.TotalMilliseconds:F2}," +
+                $"{bestFirstStatsH1List[i].MaxOpenListCount},{bestFirstStatsH1List[i].TotalStatesEnqueued},{bestFirstStatsH1List[i].ClosedListCount},{bestFirstStatsH1List[i].ExecutionTime.TotalMilliseconds:F2}," +
+                $"{bestFirstStatsH2List[i].MaxOpenListCount},{bestFirstStatsH2List[i].TotalStatesEnqueued},{bestFirstStatsH2List[i].ClosedListCount},{bestFirstStatsH2List[i].ExecutionTime.TotalMilliseconds:F2}," +
+                $"{(solutionMode == SolutionMode.First ? "1" : bfsStatsList[i].AllSolutions.Count.ToString())}");
         }
 
-        sb.AppendLine("\nExperiments completed.");
-        Console.Write(sb);
+        summary.AppendLine("\nExperiments completed.");
+        Console.Write(summary);
     }
 }
