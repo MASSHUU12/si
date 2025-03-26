@@ -20,6 +20,7 @@ class Program
         public NQueensSolver.PruningLevel PruningLevel { get; set; } = NQueensSolver.PruningLevel.Full;
         public NQueensSolver.SolutionMode SolutionMode { get; set; } = NQueensSolver.SolutionMode.All;
         public bool RunAllMethods { get; set; } = true;
+        public bool Debug { get; set; } = false;
     }
 
     static int Main(string[] args)
@@ -66,7 +67,6 @@ class Program
     {
         Configuration config = new();
 
-        // Parse command type
         if (args[0] == "-s" || args[0] == "--solve")
         {
             config.Command = Command.Solve;
@@ -116,6 +116,10 @@ class Program
                     config.SolutionMode = ParseSolutionMode(args[i + 1]);
                     break;
 
+                case "--debug":
+                    config.Debug = true;
+                    break;
+
                 default:
                     throw new ArgumentException($"Unknown option '{args[i]}'");
             }
@@ -140,77 +144,65 @@ class Program
         // Parse other options
         while (argIndex < args.Length)
         {
-            if (argIndex + 1 >= args.Length)
+            switch (args[argIndex])
             {
-                throw new ArgumentException($"Missing value for option {args[argIndex]}");
+                case "-l":
+                case "--level":
+                    if (argIndex + 1 >= args.Length)
+                        throw new ArgumentException($"Missing value for option {args[argIndex]}");
+                    config.PruningLevel = ParsePruningLevel(args[++argIndex]);
+                    break;
+
+                case "-o":
+                case "--solution-mode":
+                    if (argIndex + 1 >= args.Length)
+                        throw new ArgumentException($"Missing value for option {args[argIndex]}");
+                    config.SolutionMode = ParseSolutionMode(args[++argIndex]);
+                    break;
+
+                case "--debug":
+                    config.Debug = true;
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unknown option '{args[argIndex]}'");
             }
 
-            if (args[argIndex] == "-l" || args[argIndex] == "--level")
-            {
-                config.PruningLevel = ParsePruningLevel(args[argIndex + 1]);
-                argIndex += 2;
-            }
-            else if (args[argIndex] == "-o" || args[argIndex] == "--solution-mode")
-            {
-                config.SolutionMode = ParseSolutionMode(args[argIndex + 1]);
-                argIndex += 2;
-            }
-            else
-            {
-                throw new ArgumentException($"Unknown option '{args[argIndex]}'");
-            }
+            argIndex++;
         }
     }
 
     private static NQueensSolver.SolveMethod ParseMethod(string methodName)
     {
-        switch (methodName.ToLower())
+        return methodName.ToLower() switch
         {
-            case "bfs":
-                return NQueensSolver.SolveMethod.BFS;
-            case "dfs":
-                return NQueensSolver.SolveMethod.DFS;
-            case "bf":
-                return NQueensSolver.SolveMethod.BestFirst;
-            default:
-                throw new ArgumentException(
-                    $"Invalid method '{methodName}'. Use 'bfs', 'dfs' or 'bf'"
-                );
-        }
+            "bfs" => NQueensSolver.SolveMethod.BFS,
+            "dfs" => NQueensSolver.SolveMethod.DFS,
+            "bf" => NQueensSolver.SolveMethod.BestFirst,
+            _ => throw new ArgumentException($"Invalid method '{methodName}'. Use 'bfs', 'dfs' or 'bf'")
+        };
     }
 
     private static NQueensSolver.PruningLevel ParsePruningLevel(string levelName)
     {
-        switch (levelName.ToLower())
+        return levelName.ToLower() switch
         {
-            case "none":
-                return NQueensSolver.PruningLevel.None;
-            case "minimal":
-                return NQueensSolver.PruningLevel.Minimal;
-            case "partial":
-                return NQueensSolver.PruningLevel.Partial;
-            case "full":
-                return NQueensSolver.PruningLevel.Full;
-            default:
-                throw new ArgumentException(
-                    $"Invalid pruning level '{levelName}'. Use 'none', 'minimal', 'partial', or 'full'"
-                );
-        }
+            "none" => NQueensSolver.PruningLevel.None,
+            "minimal" => NQueensSolver.PruningLevel.Minimal,
+            "partial" => NQueensSolver.PruningLevel.Partial,
+            "full" => NQueensSolver.PruningLevel.Full,
+            _ => throw new ArgumentException($"Invalid pruning level '{levelName}'. Use 'none', 'minimal', 'partial', or 'full'")
+        };
     }
 
     private static NQueensSolver.SolutionMode ParseSolutionMode(string modeName)
     {
-        switch (modeName.ToLower())
+        return modeName.ToLower() switch
         {
-            case "first":
-                return NQueensSolver.SolutionMode.First;
-            case "all":
-                return NQueensSolver.SolutionMode.All;
-            default:
-                throw new ArgumentException(
-                    $"Invalid solution mode '{modeName}'. Use 'first' or 'all'"
-                );
-        }
+            "first" => NQueensSolver.SolutionMode.First,
+            "all" => NQueensSolver.SolutionMode.All,
+            _ => throw new ArgumentException($"Invalid solution mode '{modeName}'. Use 'first' or 'all'")
+        };
     }
 
     private static void ExecuteSolveCommand(Configuration config)
@@ -227,7 +219,8 @@ class Program
                 config.N,
                 NQueensSolver.SolveMethod.BFS,
                 config.PruningLevel,
-                config.SolutionMode
+                config.SolutionMode,
+                debug: config.Debug
             );
             var bfsStats = bfsSolver.Solve();
             bfsSolver.PrintResults();
@@ -239,7 +232,8 @@ class Program
                 config.N,
                 NQueensSolver.SolveMethod.DFS,
                 config.PruningLevel,
-                config.SolutionMode
+                config.SolutionMode,
+                debug: config.Debug
             );
             var dfsStats = dfsSolver.Solve();
             dfsSolver.PrintResults();
@@ -251,7 +245,8 @@ class Program
                 config.N,
                 NQueensSolver.SolveMethod.BestFirst,
                 config.PruningLevel,
-                config.SolutionMode
+                config.SolutionMode,
+                debug: config.Debug
             );
             var dfsStats = bfSolver.Solve();
             bfSolver.PrintResults();
@@ -274,7 +269,7 @@ class Program
     {
         StringBuilder sb = new();
         sb.AppendLine("Usage:");
-        sb.AppendLine("  -s, --solve <n> [-m, --method <bfs|dfs|bf>] [-l, --level <none|minimal|partial|full>] [-s, --solution-mode <first|all>]");
+        sb.AppendLine("  -s, --solve <n> [-m, --method <bfs|dfs|bf>] [-l, --level <none|minimal|partial|full>] [-o, --solution-mode <first|all>] [--debug]");
         sb.AppendLine("      Solve n-Queens puzzle for specific n value.");
         sb.AppendLine("      Options:");
         sb.AppendLine("        -m, --method: Specify search method (bfs, dfs, or both if omitted)");
@@ -286,11 +281,12 @@ class Program
         sb.AppendLine("        -o, --solution-mode: Specify solution finding mode:");
         sb.AppendLine("          first: Find only the first solution (faster)");
         sb.AppendLine("          all: Find all possible solutions (default)");
-        sb.AppendLine("      Example: --solve 8 --method bfs --level minimal --solution-mode first");
+        sb.AppendLine("        --debug: Enable debug mode to show intermediate results");
+        sb.AppendLine("      Example: --solve 8 --method bfs --level minimal --solution-mode first --debug");
         sb.AppendLine();
-        sb.AppendLine("  -e, --experiments [min_n] [max_n] [-l, --level <none|minimal|partial|full>] [-o, --solution-mode <first|all>]");
+        sb.AppendLine("  -e, --experiments [min_n] [max_n] [-l, --level <none|minimal|partial|full>] [-o, --solution-mode <first|all>] [--debug]");
         sb.AppendLine("      Run experiments from min_n to max_n (defaults: min_n=4, max_n=8).");
-        sb.AppendLine("      Example: --experiments 4 12 --level partial --solution-mode first");
+        sb.AppendLine("      Example: --experiments 4 12 --level partial --solution-mode first --debug");
 
         Console.WriteLine(sb);
     }

@@ -7,6 +7,7 @@ using System.Linq;
 class NQueensSolver
 {
     private int n;
+    private bool debug;
     private SolveMethod method;
     private PruningLevel pruningLevel;
     private SolutionMode solutionMode;
@@ -56,7 +57,8 @@ class NQueensSolver
         SolveMethod method,
         PruningLevel pruningLevel,
         SolutionMode solutionMode,
-        Heuristic heuristic = Heuristic.H1
+        Heuristic heuristic = Heuristic.H1,
+        bool debug = false
     )
     {
         this.n = n;
@@ -65,6 +67,7 @@ class NQueensSolver
         this.solutionMode = solutionMode;
         this.heuristic = heuristic;
         this.statistics = new();
+        this.debug = debug;
     }
 
     public Statistics Solve()
@@ -173,6 +176,13 @@ class NQueensSolver
                     default:
                         throw new("UNREACHABLE");
                 }
+            }
+
+            if (debug)
+            {
+                Console.WriteLine(
+                    $"Current state: {StateToString(currentState)}, Heuristic: {EvaluateState(currentState)}"
+                );
             }
         }
 
@@ -367,10 +377,11 @@ class NQueensSolver
 
         if (this.statistics.AllSolutions.Count > 0)
         {
+            List<(int, int)> firstSolution = this.statistics.AllSolutions.First();
             sb.AppendLine(
-                $"\nFirst solution state: {StateToString(this.statistics.AllSolutions.First())}"
+                $"\nFirst solution state: {StateToString(firstSolution)}, Heuristic: {EvaluateState(firstSolution)}"
             );
-            PrintBoard(this.statistics.AllSolutions.First());
+            PrintBoard(firstSolution);
         }
         else
         {
