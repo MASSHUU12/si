@@ -37,7 +37,8 @@ class NQueensSolver
     public enum Heuristic
     {
         H1,
-        H2
+        H2,
+        Hdod
     }
 
     public class Statistics
@@ -52,9 +53,9 @@ class NQueensSolver
 
     public NQueensSolver(
         int n,
-        SolveMethod method = SolveMethod.BFS,
-        PruningLevel pruningLevel = PruningLevel.Full,
-        SolutionMode solutionMode = SolutionMode.All,
+        SolveMethod method,
+        PruningLevel pruningLevel,
+        SolutionMode solutionMode,
         Heuristic heuristic = Heuristic.H1
     )
     {
@@ -242,6 +243,7 @@ class NQueensSolver
         {
             Heuristic.H1 => EvaluateH1(state),
             Heuristic.H2 => EvaluateH2(state),
+            Heuristic.Hdod => EvaluateHdod(state),
             _ => throw new("UNREACHABLE")
         };
     }
@@ -267,6 +269,25 @@ class NQueensSolver
         int attackCount = CountAttacks(state);
 
         return attackCount + (n - l);
+    }
+
+    private int EvaluateHdod(List<(int, int)> state)
+    {
+        int manhattanDistanceSum = 0;
+
+        for (int i = 0; i < state.Count; i++)
+        {
+            var (row1, col1) = state[i];
+
+            for (int j = i + 1; j < state.Count; j++)
+            {
+                var (row2, col2) = state[j];
+                int manhattanDistance = Math.Abs(row1 - row2) + Math.Abs(col1 - col2);
+                manhattanDistanceSum += Math.Abs(manhattanDistance - 3);
+            }
+        }
+
+        return manhattanDistanceSum;
     }
 
     private int CountAttacks(List<(int, int)> state)
@@ -407,7 +428,7 @@ class NQueensSolver
 
     private static void PrintSummaryHeader(StringBuilder sb)
     {
-        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8}";
+        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8} | {17,10}";
         sb.AppendLine(
             string.Format(
                 format,
@@ -428,10 +449,14 @@ class NQueensSolver
                 "BH2-Enq",
                 "BH2-Cls",
                 "BH2-T",
+                "Hdod-Max",
+                "Hdod-Enq",
+                "Hdod-Cls",
+                "Hdod-T",
                 "Sol"
             )
         );
-        sb.AppendLine(new string('-', 196));
+        sb.AppendLine(new string('-', 212));
     }
 
     private static void PrintSummaryRow(
@@ -441,10 +466,11 @@ class NQueensSolver
         Statistics dfsStats,
         Statistics bestFirstStatsH1,
         Statistics bestFirstStatsH2,
+        Statistics bestFirstStatsHdod,
         SolutionMode solutionMode
     )
     {
-        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8}";
+        const string format = "{0,4} | {1,8} | {2,10} | {3,10} | {4,8} | {5,8} | {6,10} | {7,10} | {8,8} | {9,8} | {10,10} | {11,10} | {12,8} | {13,8} | {14,10} | {15,10} | {16,8} | {17,10}";
         sb.AppendLine(
             string.Format(
                 format,
@@ -465,6 +491,10 @@ class NQueensSolver
                 bestFirstStatsH2.TotalStatesEnqueued,
                 bestFirstStatsH2.ClosedListCount,
                 bestFirstStatsH2.ExecutionTime.TotalMilliseconds.ToString("F2"),
+                bestFirstStatsHdod.MaxOpenListCount,
+                bestFirstStatsHdod.TotalStatesEnqueued,
+                bestFirstStatsHdod.ClosedListCount,
+                bestFirstStatsHdod.ExecutionTime.TotalMilliseconds.ToString("F2"),
                 solutionMode == SolutionMode.First
                     ? "1"
                     : bfsStats.AllSolutions.Count.ToString()
@@ -492,7 +522,8 @@ class NQueensSolver
         List<Statistics> bfsStatsList = [],
             dfsStatsList = [],
             bestFirstStatsH1List = [],
-            bestFirstStatsH2List = [];
+            bestFirstStatsH2List = [],
+            bestFirstStatsHdodList = [];
 
         for (int n = minN; n <= maxN; n++)
         {
@@ -524,18 +555,26 @@ class NQueensSolver
                 solutionMode,
                 Heuristic.H2
             );
+            Statistics bestFirstStatsHdod = RunSingleExperiment(
+                n,
+                SolveMethod.BestFirst,
+                pruningLevel,
+                solutionMode,
+                Heuristic.Hdod
+            );
 
             nValues.Add(n);
             bfsStatsList.Add(bfsStats);
             dfsStatsList.Add(dfsStats);
             bestFirstStatsH1List.Add(bestFirstStatsH1);
             bestFirstStatsH2List.Add(bestFirstStatsH2);
+            bestFirstStatsHdodList.Add(bestFirstStatsHdod);
 
-            PrintSummaryRow(summary, n, bfsStats, dfsStats, bestFirstStatsH1, bestFirstStatsH2, solutionMode);
+            PrintSummaryRow(summary, n, bfsStats, dfsStats, bestFirstStatsH1, bestFirstStatsH2, bestFirstStatsHdod, solutionMode);
         }
 
         summary.AppendLine("\n--- CSV Format ---");
-        summary.AppendLine("n,BFS-Max,BFS-Enq,BFS-Cls,BFS-T,DFS-Max,DFS-Enq,DFS-Cls,DFS-T,BH1-Max,BH1-Enq,BH1-Cls,BH1-T,BH2-Max,BH2-Enq,BH2-Cls,BH2-T,Sol");
+        summary.AppendLine("n,BFS-Max,BFS-Enq,BFS-Cls,BFS-T,DFS-Max,DFS-Enq,DFS-Cls,DFS-T,BH1-Max,BH1-Enq,BH1-Cls,BH1-T,BH2-Max,BH2-Enq,BH2-Cls,BH2-T,Hdod-Max,Hdod-Enq,Hdod-Cls,Hdod-T,Sol");
 
         for (int i = 0; i < nValues.Count; i++)
         {
@@ -543,6 +582,7 @@ class NQueensSolver
                 $"{dfsStatsList[i].MaxOpenListCount},{dfsStatsList[i].TotalStatesEnqueued},{dfsStatsList[i].ClosedListCount},{dfsStatsList[i].ExecutionTime.TotalMilliseconds:F2}," +
                 $"{bestFirstStatsH1List[i].MaxOpenListCount},{bestFirstStatsH1List[i].TotalStatesEnqueued},{bestFirstStatsH1List[i].ClosedListCount},{bestFirstStatsH1List[i].ExecutionTime.TotalMilliseconds:F2}," +
                 $"{bestFirstStatsH2List[i].MaxOpenListCount},{bestFirstStatsH2List[i].TotalStatesEnqueued},{bestFirstStatsH2List[i].ClosedListCount},{bestFirstStatsH2List[i].ExecutionTime.TotalMilliseconds:F2}," +
+                $"{bestFirstStatsHdodList[i].MaxOpenListCount},{bestFirstStatsHdodList[i].TotalStatesEnqueued},{bestFirstStatsHdodList[i].ClosedListCount},{bestFirstStatsHdodList[i].ExecutionTime.TotalMilliseconds:F2}," +
                 $"{(solutionMode == SolutionMode.First ? "1" : bfsStatsList[i].AllSolutions.Count.ToString())}");
         }
 

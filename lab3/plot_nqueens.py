@@ -5,7 +5,7 @@ import os
 
 def plot_nqueens_statistics(csv_file):
     """
-    Create graphs showing statistics for BFS, DFS, and Best First Search (H1 and H2) N-Queens algorithms.
+    Create graphs showing statistics for BFS, DFS, and Best First Search (H1, H2, and Hdod) N-Queens algorithms.
     The graphs show:
     1. Open list count vs N
     2. Closed list count vs N
@@ -20,16 +20,17 @@ def plot_nqueens_statistics(csv_file):
         return
 
     fig, axs = plt.subplots(3, 1, figsize=(12, 18))
-    fig.suptitle('N-Queens Problem: BFS vs DFS vs Best First (H1 & H2) Comparison', fontsize=16)
+    fig.suptitle('N-Queens Problem: BFS vs DFS vs Best First (H1, H2 & Hdod) Comparison', fontsize=16)
 
-    colors = {'BFS': 'blue', 'DFS': 'red', 'BH1': 'green', 'BH2': 'purple'}
-    markers = {'BFS': 'o', 'DFS': 's', 'BH1': 'D', 'BH2': '^'}
+    colors = {'BFS': 'blue', 'DFS': 'red', 'BH1': 'green', 'BH2': 'purple', 'Hdod': 'orange'}
+    markers = {'BFS': 'o', 'DFS': 's', 'BH1': 'D', 'BH2': '^', 'Hdod': 'v'}
 
     # Plot 1: Open List Size
     axs[0].plot(data['n'], data['BFS-Max'], color=colors['BFS'], marker=markers['BFS'], label='BFS')
     axs[0].plot(data['n'], data['DFS-Max'], color=colors['DFS'], marker=markers['DFS'], label='DFS')
     axs[0].plot(data['n'], data['BH1-Max'], color=colors['BH1'], marker=markers['BH1'], label='Best First (H1)')
     axs[0].plot(data['n'], data['BH2-Max'], color=colors['BH2'], marker=markers['BH2'], label='Best First (H2)')
+    axs[0].plot(data['n'], data['Hdod-Max'], color=colors['Hdod'], marker=markers['Hdod'], label='Best First (Hdod)')
     axs[0].set_title('Open List Size vs Number of Queens')
     axs[0].set_xlabel('Number of Queens (n)')
     axs[0].set_ylabel('Open List Size')
@@ -41,6 +42,7 @@ def plot_nqueens_statistics(csv_file):
     axs[1].plot(data['n'], data['DFS-Cls'], color=colors['DFS'], marker=markers['DFS'], label='DFS')
     axs[1].plot(data['n'], data['BH1-Cls'], color=colors['BH1'], marker=markers['BH1'], label='Best First (H1)')
     axs[1].plot(data['n'], data['BH2-Cls'], color=colors['BH2'], marker=markers['BH2'], label='Best First (H2)')
+    axs[1].plot(data['n'], data['Hdod-Cls'], color=colors['Hdod'], marker=markers['Hdod'], label='Best First (Hdod)')
     axs[1].set_title('Closed List Size vs Number of Queens')
     axs[1].set_xlabel('Number of Queens (n)')
     axs[1].set_ylabel('Closed List Size (States Checked)')
@@ -52,6 +54,7 @@ def plot_nqueens_statistics(csv_file):
     axs[2].plot(data['n'], data['DFS-T'], color=colors['DFS'], marker=markers['DFS'], label='DFS')
     axs[2].plot(data['n'], data['BH1-T'], color=colors['BH1'], marker=markers['BH1'], label='Best First (H1)')
     axs[2].plot(data['n'], data['BH2-T'], color=colors['BH2'], marker=markers['BH2'], label='Best First (H2)')
+    axs[2].plot(data['n'], data['Hdod-T'], color=colors['Hdod'], marker=markers['Hdod'], label='Best First (Hdod)')
     axs[2].set_title('Execution Time vs Number of Queens')
     axs[2].set_xlabel('Number of Queens (n)')
     axs[2].set_ylabel('Execution Time (seconds)')
