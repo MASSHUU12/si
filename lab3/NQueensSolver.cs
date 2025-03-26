@@ -396,7 +396,7 @@ class NQueensSolver
         SolveMethod method,
         PruningLevel pruningLevel,
         SolutionMode solutionMode,
-        Heuristic heuristic
+        Heuristic heuristic = Heuristic.H1
     )
     {
         NQueensSolver solver = new(n, method, pruningLevel, solutionMode, heuristic);

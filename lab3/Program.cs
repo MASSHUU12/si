@@ -274,7 +274,7 @@ class Program
     {
         StringBuilder sb = new();
         sb.AppendLine("Usage:");
-        sb.AppendLine("  -s, --solve <n> [-m, --method <bfs|dfs>] [-l, --level <none|minimal|partial|full>] [-s, --solution-mode <first|all>]");
+        sb.AppendLine("  -s, --solve <n> [-m, --method <bfs|dfs|bf>] [-l, --level <none|minimal|partial|full>] [-s, --solution-mode <first|all>]");
         sb.AppendLine("      Solve n-Queens puzzle for specific n value.");
         sb.AppendLine("      Options:");
         sb.AppendLine("        -m, --method: Specify search method (bfs, dfs, or both if omitted)");
@@ -288,7 +288,7 @@ class Program
         sb.AppendLine("          all: Find all possible solutions (default)");
         sb.AppendLine("      Example: --solve 8 --method bfs --level minimal --solution-mode first");
         sb.AppendLine();
-        sb.AppendLine("  -e, --experiments [min_n] [max_n] [-l, --level <none|minimal|partial|full>] [-s, --solution-mode <first|all>]");
+        sb.AppendLine("  -e, --experiments [min_n] [max_n] [-l, --level <none|minimal|partial|full>] [-o, --solution-mode <first|all>]");
         sb.AppendLine("      Run experiments from min_n to max_n (defaults: min_n=4, max_n=8).");
         sb.AppendLine("      Example: --experiments 4 12 --level partial --solution-mode first");
 
