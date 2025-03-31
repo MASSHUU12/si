@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 
 internal class LastCoin(int maxTake = 3, int coins = 5)
 {
@@ -83,16 +86,20 @@ internal class LastCoin(int maxTake = 3, int coins = 5)
             if (state - i >= 0)
             {
                 children.Add(state - i);
-                if (!tree.TryGetValue(state, out List<int>? value))
-                {
-                    value = [];
-                    tree[state] = value;
-                }
-
-                value.Add(state - i);
+                UpdateGameTree(state, state - i);
             }
         }
         return children;
+    }
+
+    private void UpdateGameTree(int parent, int child)
+    {
+        if (!tree.TryGetValue(parent, out List<int>? value))
+        {
+            value = [];
+            tree[parent] = value;
+        }
+        value.Add(child);
     }
 
     public void Play()
@@ -131,7 +138,9 @@ internal class LastCoin(int maxTake = 3, int coins = 5)
         {
             Console.WriteLine(cutOff);
         }
-        DrawTree();
+
+        // DrawTree();
+        ExportTreeAsDOT("./assets/gametree.dot");
     }
 
     private void DrawTree()
@@ -150,5 +159,29 @@ internal class LastCoin(int maxTake = 3, int coins = 5)
                 DrawSubTree(value[i], depth + 1, $"Child {i + 1}");
             }
         }
+    }
+
+    private void ExportTreeAsDOT(string filePath)
+    {
+        StringBuilder sb = new();
+        _ = sb.AppendLine("digraph GameTree {");
+        _ = sb.AppendLine("    rankdir=TB;");
+        _ = sb.AppendLine("    node [shape=circle, style=filled, fillcolor=white, fontname=\"Helvetica\", fontsize=12];");
+
+        foreach (KeyValuePair<int, List<int>> kvp in tree)
+        {
+            int parent = kvp.Key;
+            foreach (int child in kvp.Value)
+            {
+                _ = sb.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"    {parent} -> {child};"
+                );
+            }
+        }
+        _ = sb.AppendLine("}");
+
+        File.WriteAllText(filePath, sb.ToString());
+        Console.WriteLine($"Minimalistic DOT file exported to {filePath}");
     }
 }
