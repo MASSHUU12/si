@@ -1,3 +1,2 @@
-using System;
-
-Console.WriteLine("Hello, World!");
+LastCoin lc = new();
+lc.Play();
