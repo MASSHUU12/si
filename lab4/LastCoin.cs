@@ -4,64 +4,108 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
+internal class TreeNode(int state)
+{
+    private static int idCounter;
+    public int Id { get; } = idCounter++;
+    public int State { get; set; } = state;
+    public List<TreeNode> Children { get; set; } = [];
+}
+
 internal class LastCoin(int maxTake = 3, int coins = 5)
 {
-    private readonly Dictionary<int, List<int>> tree = [];
     private int nodesGenerated;
-    private readonly List<string> nodeProcessingOrder = [];
-    private readonly List<string> alphaBetaChanges = [];
     private readonly List<string> cutOffPoints = [];
+    private readonly List<string> alphaBetaChanges = [];
+    private readonly List<string> nodeProcessingOrder = [];
 
-    private int AlphaBetaEvaluateMaxState(int state, int alpha = -100, int beta = 100)
+    public TreeNode BuildGameTree(int state)
     {
-        nodesGenerated++;
-        nodeProcessingOrder.Add($"Max State: {state}, Alpha: {alpha}, Beta: {beta}");
+        TreeNode node = new(state);
 
         if (IsTerminal(state))
         {
-            return Payoff(state);
+            return node;
+        }
+
+        for (int i = 1; i <= maxTake; i++)
+        {
+            if (state - i >= 0)
+            {
+                node.Children.Add(BuildGameTree(state - i));
+            }
+        }
+        return node;
+    }
+
+    private int AlphaBetaEvaluateMax(
+        TreeNode node,
+        int alpha = -100,
+        int beta = 100
+    )
+    {
+        nodesGenerated++;
+        nodeProcessingOrder.Add(
+            $"Max State: {node.State}, Alpha: {alpha}, Beta: {beta}"
+        );
+
+        if (IsTerminal(node.State))
+        {
+            return Payoff(node.State);
         }
 
         int value = int.MinValue;
-        List<int> children = GenerateChildren(state);
-
-        foreach (int child in children)
+        foreach (TreeNode child in node.Children)
         {
-            value = Math.Max(value, AlphaBetaEvaluateMinState(child, alpha, beta));
+            int childVal = AlphaBetaEvaluateMin(child, alpha, beta);
+            value = Math.Max(value, childVal);
             alpha = Math.Max(alpha, value);
-            alphaBetaChanges.Add($"Max State: {state}, Child: {child}, Alpha: {alpha}, Beta: {beta}");
+            alphaBetaChanges.Add(
+                $"Max State: {node.State}, Child: {child.State}, Alpha: {alpha}, Beta: {beta}"
+            );
 
             if (alpha >= beta)
             {
-                cutOffPoints.Add($"Cut-off at Max State: {state}, Child: {child}, Alpha: {alpha}, Beta: {beta}");
+                cutOffPoints.Add(
+                    $"Cut-off at Max State: {node.State}, Child: {child.State}, Alpha: {alpha}, Beta: {beta}"
+                );
                 break;
             }
         }
         return value;
     }
 
-    private int AlphaBetaEvaluateMinState(int state, int alpha = -100, int beta = 100)
+    private int AlphaBetaEvaluateMin(
+        TreeNode node,
+        int alpha = -100,
+        int beta = 100
+    )
     {
         nodesGenerated++;
-        nodeProcessingOrder.Add($"Min State: {state}, Alpha: {alpha}, Beta: {beta}");
+        nodeProcessingOrder.Add(
+            $"Min State: {node.State}, Alpha: {alpha}, Beta: {beta}"
+        );
 
-        if (IsTerminal(state))
+        if (IsTerminal(node.State))
         {
-            return Payoff(state);
+            return Payoff(node.State);
         }
 
         int value = int.MaxValue;
-        List<int> children = GenerateChildren(state);
-
-        foreach (int child in children)
+        foreach (TreeNode child in node.Children)
         {
-            value = Math.Min(value, AlphaBetaEvaluateMaxState(child, alpha, beta));
+            int childVal = AlphaBetaEvaluateMax(child, alpha, beta);
+            value = Math.Min(value, childVal);
             beta = Math.Min(beta, value);
-            alphaBetaChanges.Add($"Min State: {state}, Child: {child}, Alpha: {alpha}, Beta: {beta}");
+            alphaBetaChanges.Add(
+                $"Min State: {node.State}, Child: {child.State}, Alpha: {alpha}, Beta: {beta}"
+            );
 
             if (alpha >= beta)
             {
-                cutOffPoints.Add($"Cut-off at Min State: {state}, Child: {child}, Alpha: {alpha}, Beta: {beta}");
+                cutOffPoints.Add(
+                    $"Cut-off at Min State: {node.State}, Child: {child.State}, Alpha: {alpha}, Beta: {beta}"
+                );
                 break;
             }
         }
@@ -78,47 +122,25 @@ internal class LastCoin(int maxTake = 3, int coins = 5)
         return state == 0 ? -100 : 100;
     }
 
-    private List<int> GenerateChildren(int state)
-    {
-        List<int> children = [];
-        for (int i = 1; i <= maxTake; i++)
-        {
-            if (state - i >= 0)
-            {
-                children.Add(state - i);
-                UpdateGameTree(state, state - i);
-            }
-        }
-        return children;
-    }
-
-    private void UpdateGameTree(int parent, int child)
-    {
-        if (!tree.TryGetValue(parent, out List<int>? value))
-        {
-            value = [];
-            tree[parent] = value;
-        }
-        value.Add(child);
-    }
-
     public void Play()
     {
-        int bestMove = -1;
-        int bestValue = int.MinValue;
-        List<int> children = GenerateChildren(coins);
+        TreeNode root = BuildGameTree(coins);
 
-        foreach (int child in children)
+        int bestValue = int.MinValue;
+        int bestMoveState = -1;
+        foreach (TreeNode child in root.Children)
         {
-            int value = AlphaBetaEvaluateMinState(child);
+            int value = AlphaBetaEvaluateMin(child);
             if (value > bestValue)
             {
                 bestValue = value;
-                bestMove = child;
+                bestMoveState = child.State;
             }
         }
 
-        Console.WriteLine($"Best move for player A is to take {coins - bestMove} coins.");
+        Console.WriteLine(
+            $"Best move for player A is to take {coins - bestMoveState} coins."
+        );
         Console.WriteLine($"Nodes generated: {nodesGenerated}");
 
         Console.WriteLine("\nAlpha-Beta Changes:");
@@ -139,49 +161,50 @@ internal class LastCoin(int maxTake = 3, int coins = 5)
             Console.WriteLine(cutOff);
         }
 
-        // DrawTree();
-        ExportTreeAsDOT("./assets/gametree.dot");
+        // Console.WriteLine("\nGame Tree:");
+        // PrintTree(root);
+        ExportTreeAsDOT(root, "./assets/gametree.dot");
     }
 
-    private void DrawTree()
+    public static void PrintTree(TreeNode node, int depth = 0)
     {
-        Console.WriteLine("\nGame Tree:");
-        DrawSubTree(coins, 0, "Root");
-    }
-
-    private void DrawSubTree(int state, int depth, string label)
-    {
-        Console.WriteLine($"{new string(' ', depth * 4)}{label}: {state}");
-        if (tree.TryGetValue(state, out List<int>? value))
+        Console.WriteLine($"{new string(' ', depth * 4)}State: {node.State}");
+        foreach (TreeNode child in node.Children)
         {
-            for (int i = 0; i < value.Count; i++)
-            {
-                DrawSubTree(value[i], depth + 1, $"Child {i + 1}");
-            }
+            PrintTree(child, depth + 1);
         }
     }
 
-    private void ExportTreeAsDOT(string filePath)
+    public static void ExportTreeAsDOT(TreeNode root, string filePath)
     {
         StringBuilder sb = new();
         _ = sb.AppendLine("digraph GameTree {");
         _ = sb.AppendLine("    rankdir=TB;");
-        _ = sb.AppendLine("    node [shape=circle, style=filled, fillcolor=white, fontname=\"Helvetica\", fontsize=12];");
+        _ = sb.AppendLine(
+            "    node [shape=circle, style=filled, fillcolor=white, fontname=\"Helvetica\", fontsize=12];"
+        );
 
-        foreach (KeyValuePair<int, List<int>> kvp in tree)
-        {
-            int parent = kvp.Key;
-            foreach (int child in kvp.Value)
-            {
-                _ = sb.AppendLine(
-                    CultureInfo.InvariantCulture,
-                    $"    {parent} -> {child};"
-                );
-            }
-        }
+        AppendDOT(root, sb);
+
         _ = sb.AppendLine("}");
-
         File.WriteAllText(filePath, sb.ToString());
-        Console.WriteLine($"Minimalistic DOT file exported to {filePath}");
+        Console.WriteLine($"DOT file exported to {filePath}");
+    }
+
+    private static void AppendDOT(TreeNode node, StringBuilder sb)
+    {
+        _ = sb.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"    node{node.Id} [label=\"ID: {node.Id}\\nState: {node.State}\"];"
+        );
+
+        foreach (TreeNode child in node.Children)
+        {
+            _ = sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"    node{node.Id} -> node{child.Id};"
+            );
+            AppendDOT(child, sb);
+        }
     }
 }
