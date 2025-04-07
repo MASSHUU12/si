@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
+using System.Linq;
+using System.IO;
 
 class NQueensSolver
 {
@@ -14,6 +16,9 @@ class NQueensSolver
 
     private Random random = new();
     private Statistics statistics;
+
+    private List<int> bestFitnessHistory = new();
+    private List<double> avgFitnessHistory = new();
 
     public class Statistics
     {
@@ -51,6 +56,9 @@ class NQueensSolver
         int bestIndex = GetBestIndex(fitness);
 
         int generation = 0;
+        bestFitnessHistory.Add(fitness[bestIndex]);
+        avgFitnessHistory.Add(fitness.Average());
+
         // ffmax is 0 since a perfect solution has 0 attacks.
         while (generation < genMax && fitness[bestIndex] > 0)
         {
@@ -89,6 +97,9 @@ class NQueensSolver
             fitness = EvaluatePopulation(population);
             bestIndex = GetBestIndex(fitness);
             generation++;
+
+            bestFitnessHistory.Add(fitness[bestIndex]);
+            avgFitnessHistory.Add(fitness.Average());
         }
 
         stopwatch.Stop();
@@ -255,6 +266,11 @@ class NQueensSolver
         sb.AppendLine($"Number of attacks (fitness): {this.statistics.BestFitness}");
 
         Console.WriteLine(sb);
+
+        if (drawBoard)
+        {
+            ExportFitnessDataToCSV("./assets/fitness_data.csv");
+        }
     }
 
     private string BoardToString(List<(int, int)> solution)
@@ -280,6 +296,19 @@ class NQueensSolver
         }
 
         return sb.ToString();
+    }
+
+    private void ExportFitnessDataToCSV(string filename)
+    {
+        using (StreamWriter writer = new(filename))
+        {
+            writer.WriteLine("Generation,BestFitness,AvgFitness");
+            for (int i = 0; i < bestFitnessHistory.Count; i++)
+            {
+                writer.WriteLine($"{i},{bestFitnessHistory[i]},{avgFitnessHistory[i]}");
+            }
+        }
+        Console.WriteLine($"Fitness data exported to {filename}");
     }
 
     private static Statistics RunSingleExperiment(
@@ -356,7 +385,7 @@ class NQueensSolver
         }
 
         sb.AppendLine("\n--- CSV Format ---");
-        sb.AppendLine("N,Time");
+        sb.AppendLine("N,Time,PS,TS,GM,BG,BF");
 
         for (int i = 0; i < n; i++)
         {
@@ -370,7 +399,7 @@ class NQueensSolver
                 stats[i].BestGeneration,
                 stats[i].BestFitness
             );
-            sb.AppendLine($"{i},{stats[i].ExecutionTime.TotalMilliseconds}");
+            sb.AppendLine();
         }
 
         sb.AppendLine("\nExperiments completed.");
