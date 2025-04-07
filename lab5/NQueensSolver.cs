@@ -69,6 +69,9 @@ class NQueensSolver
                 newPopulation.Add(TournamentSelection(population, fitness));
             }
 
+            // Elitism: preserve the best individual from the current generation
+            newPopulation[0] = new List<(int, int)>(population[bestIndex]);
+
             // One-point crossover on pairs with probability pc
             for (int i = 0; i < popSize - 1; i += 2)
             {
@@ -373,12 +376,11 @@ class NQueensSolver
 
         List<Statistics> stats = [];
 
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < times; i++)
         {
             Console.WriteLine($"=== Test {i} ===");
 
             Statistics r = RunSingleExperiment(n, popSize, tournamentSize, genMax);
-
             stats.Add(r);
 
             PrintSummaryRow(sb, i, popSize, tournamentSize, genMax, r);
@@ -387,7 +389,7 @@ class NQueensSolver
         sb.AppendLine("\n--- CSV Format ---");
         sb.AppendLine("N,Time,PS,TS,GM,BG,BF");
 
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < stats.Count; i++)
         {
             sb.AppendFormat(
                 "{0},{1},{2},{3},{4},{5},{6}",
@@ -401,6 +403,14 @@ class NQueensSolver
             );
             sb.AppendLine();
         }
+
+        List<int> bestFitnesses = stats.Select(s => s.BestFitness).ToList();
+        double avgBestFitness = bestFitnesses.Average();
+        double stdDevBestFitness = Math.Sqrt(bestFitnesses.Sum(x => Math.Pow(x - avgBestFitness, 2)) / bestFitnesses.Count);
+
+        sb.AppendLine("\n=== Additional statistics ===");
+        sb.AppendLine($"Average evaluate (best individual): {avgBestFitness:F2}");
+        sb.AppendLine($"Standard deviation: {stdDevBestFitness:F2}");
 
         sb.AppendLine("\nExperiments completed.");
         Console.Write(sb);
