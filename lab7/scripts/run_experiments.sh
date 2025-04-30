@@ -57,14 +57,16 @@ for neurons in 25 50 100 150; do
       echo "  -> test results appended to $LOG"
 
       # Plot surface
-      OUT_PNG="$SURF_DIR/surf_${runname}.png"
+      OUT_SURF="$SURF_DIR/surf_${runname}.png"
+      OUT_SCAT="$SURF_DIR/scatter_${runname}.png"
       python3 ./scripts/plot_surface.py \
         --V $V_PATH \
         --W $W_PATH \
         --grid 80 \
-        --out $OUT_PNG
+        --out "$OUT_SURF" "$OUT_SCAT"
 
-      echo "  -> surface plot saved to $OUT_PNG"
+      echo "  -> surface plot saved to $OUT_SURF"
+      echo "  -> scatter plot saved to $OUT_SCAT"
     done
   done
 done
