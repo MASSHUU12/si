@@ -40,7 +40,7 @@ $$
 - Dla każdej konfiguracji:
   - trening (`--mode train`),
   - test i obliczenie średniego błędu bezwzględnego (MAE),
-  - wizualizacja powierzchni sieci (surface plot) w Pythonie.
+  - wizualizacja powierzchni sieci (surface plot) oraz punktów uczących (scatter plot) w Pythonie.
 
 ## 3. Wyniki eksperymentów
 
