@@ -42,34 +42,46 @@ $$
   - test i obliczenie średniego błędu bezwzględnego (MAE),
   - wizualizacja powierzchni sieci (surface plot) oraz punktów uczących (scatter plot) w Pythonie.
 
-## 3. Wyniki eksperymentów
+## 3. Wyniki eksperymentów z porównaniem do sklearn
 
 Spośród przebadanych ustawień najlepsze (MAE bliskie zeru) uzyskano przy:
 
-![surf_n25_e0.1_ep500000](https://raw.githubusercontent.com/MASSHUU12/si/refs/heads/master/lab7/assets/surf_n25_e0.1_ep500000.png)
+![scatter_n50_e0.05_ep500000](https://raw.githubusercontent.com/MASSHUU12/si/refs/heads/master/lab7/assets/scatter_n50_e0.05_ep500000.png)
 
-> $N = 25, \eta = 0.1, epoki = 500000, MAE = 0.077118$
+| Konfiguracja                           | Model   | MAE      | RMSE     |
+| -------------------------------------- | ------- | -------- | -------- |
+| $N = 50, \eta = 0.05, epoki = 500000 $ | sklearn | 0.438879 | 0.539368 |
+|                                        | .NET    | 0.061969 | 0.083408 |
 
-![surf_n25_e0.5_ep500000](https://raw.githubusercontent.com/MASSHUU12/si/refs/heads/master/lab7/assets/surf_n25_e0.5_ep500000.png)
+![scatter_n100_e0.1_ep500000](https://raw.githubusercontent.com/MASSHUU12/si/refs/heads/master/lab7/assets/scatter_n100_e0.1_ep500000.png)
 
-> $N = 25, \eta = 0.5, epoki = 500000, MAE = 0.058950$
+| Konfiguracja                           | Model   | MAE      | RMSE     |
+| -------------------------------------- | ------- | -------- | -------- |
+| $N = 100, \eta = 0.1, epoki = 500000 $ | sklearn | 0.428952 | 0.526184 |
+|                                        | .NET    | 0.080281 | 0.133268 |
 
-oraz - nieco słabiej, acz wciąż dobrze - przy:
-- $N$ = 25, $\eta$ = 0,05, epoki = 500 000
-- $N$ = 50, $\eta$ = 0,1 lub 0,5, epoki = 500 000
-- $N$ = 100, $\eta$ = 0,1, epoki = 500 000
-- $N$ = 150, $\eta$ = 0,1, epoki = 500 000
+### Podsumowanie wszystkich konfiguracji
 
-Widzimy wyraźnie, że dla $N$ = 25-100 oraz bardzo dużej liczby epok ($\geq 5 \cdot 10^5$)
-i umiarkowanych-wysokich wartościach $\eta$ sieć jest w stanie niemal doskonale odtworzyć zadaną funkcję.
+We wszystkich testowanych konfiguracjach ręcznie napisany MLP osiągał istotnie niższy błąd niż `MLPRegressor`, co sugeruje:
+- **Lepsza kalibracja** w implementacji.
+- **Optymalizacja spadku gradientu** i inicjalizacji wag w sieci jest dla tego zadania korzystniejsza.
 
 ## 4. Wnioski
 
-1. **Liczba neuronów**
+1. **Przewaga własnej implementacji**
+   We wszystkich przypadkach własny MLP osiągał istotnie mniejsze MAE niż `sklearn` z tymi samymi parametrami.
+2. **Hiperparametry**
+   - **N = 25-50, $\eta$ = 0.1-0.5, epoki $\geq 5 \cdot 10^5$** to sweet spot - minimalny błąd i rezonowne czasy trenowania.
+   - Dla `sklearn` nawet przy tych ustawieniach błąd pozostaje wysoki, co może wynikać z interpetacji parametrów
+     (np. `max_iter` w sklearn to maksymalna liczba epok przed sprawdzeniem warunku stopu, a nie gwarantowane 500 000 update'ów).
+3. **Implementacja vs biblioteka**
+   - Własna implementacja umożliwia pełną kontrolę nad algorytmem (również nad kolejnością operacji, dokładnością numeryczną itp.).
+   - `MLPRegressor` ułatwia szybkie prototypowanie, ale ukrywa część detali (czasem zaskakujące ustawienia domyślne, timeouty, sprawdzanie stopu).
+4. **Liczba neuronów**
   Już $N = 25$ wystarcza do odwzorowania funkcji. Większe $N$ dawało niewielką poprawę, ale znacznie droższy trening.
-2. **Współczynnik uczenia**
+5. **Współczynnik uczenia**
    Zbyt niski ($< 0,01$) spowalnia zbieżność, zbyt wysoki ($\geq 0,5$) powoduje niestabilności.
    Optimum w okolicach $0,1$.
-3. **Liczba epok**
+6. **Liczba epok**
    Wymagane setki tysięcy epok, aby osiągnąć zadowalający błąd - algorytm online SGD jest powolny.
    Mini-batch (32) poprawia stabilność i eliminuje NaN, ale nadal potrzeba dużej liczby iteracji.
