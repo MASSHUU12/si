@@ -13,6 +13,7 @@ class Program
         int neurons = 10;
         double eta = 0.01;
         int epochs = 10000;
+        int batchSize = 1;
         string modelV = "../data/V.csv"; // where to save / load V
         string modelW = "../data/W.csv"; // where to save / load W
 
@@ -38,6 +39,9 @@ class Program
                 case "--epochs":
                     epochs = int.Parse(args[++i], CultureInfo.InvariantCulture);
                     break;
+                case "--batch":
+                    batchSize = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    break;
                 case "--V":
                     modelV = args[++i];
                     break;
@@ -53,7 +57,7 @@ class Program
         if (mode != "train" && mode != "test")
         {
             Console.Error.WriteLine("Usage:");
-            Console.Error.WriteLine("  Train: dotnet run -- --mode train --data train.csv [--neurons N] [--eta η] [--epochs E] [--V V.csv] [--W W.csv]");
+            Console.Error.WriteLine("  Train: dotnet run -- --mode train --data train.csv [--neurons N] [--eta η] [--epochs E] [--batch B] [--V V.csv] [--W W.csv]");
             Console.Error.WriteLine("  Test:  dotnet run -- --mode test --test test.csv --V V.csv --W W.csv");
             return;
         }
@@ -68,7 +72,7 @@ class Program
 
             var (X_train, y_train) = Utils.LoadCsv(dataPath);
 
-            MlpNetwork mlp = new(neurons, eta, epochs);
+            MlpNetwork mlp = new(neurons, eta, epochs, batchSize);
             mlp.Fit(X_train, y_train);
 
             Utils.SaveMatrix(modelV, mlp.V);

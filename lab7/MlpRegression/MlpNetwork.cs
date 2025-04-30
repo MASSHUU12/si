@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace MlpRegression;
 
@@ -7,16 +8,18 @@ public class MlpNetwork
     public readonly int N;      // number of hidden neurons
     public readonly double Eta;
     public readonly int Epochs;
+    public readonly int BatchSize;
     public double[,] V;         // hidden weights: size N x (2 inputs + 1 bias)
     public double[] W;          // output weights: size (N hidden + 1 bias)
 
     private readonly Random rnd = new();
 
-    public MlpNetwork(int neurons, double eta, int epochs)
+    public MlpNetwork(int neurons, double eta, int epochs, int batchSize)
     {
         N = neurons;
         Eta = eta;
         Epochs = epochs;
+        BatchSize = batchSize;
         V = new double[N, 3];
         W = new double[N + 1];
         InitializeWeights();
@@ -28,13 +31,14 @@ public class MlpNetwork
         N = vLoaded.GetLength(0);
         Eta = 0; // no training
         Epochs = 0;
+        BatchSize = 1;
         V = vLoaded;
         W = wLoaded;
     }
 
     private void InitializeWeights()
     {
-        // small random weights ~ U[-0.5,0.5]
+        // Small random weights ~ U[-0.5,0.5]
         for (int i = 0; i < N; i++)
             for (int j = 0; j < 3; j++)
                 V[i, j] = rnd.NextDouble() - 0.5;
@@ -48,7 +52,7 @@ public class MlpNetwork
     private static double Dsigmoid(double phi)
         => phi * (1 - phi);
 
-    // forward pass: returns (phi_hiddens[], y_out)
+    // Forward pass: returns (phi_hiddens[], y_out)
     private (double[] phi, double y) Forward(double[] x)
     {
         // x: length 2
@@ -67,43 +71,59 @@ public class MlpNetwork
         return (phi, y);
     }
 
+    // Mini-batch training
     public void Fit(double[][] X, double[] Y)
     {
         int M = X.Length;
+        var indices = Enumerable.Range(0, M).ToArray();
+
         for (int ep = 0; ep < Epochs; ep++)
         {
-            // stochastic: pick one sample
-            int i = rnd.Next(M);
-            var xi = X[i];
-            double yi_true = Y[i];
+            // Sample a random mini-batch of indices
+            var batchIdx = indices
+                .OrderBy(_ => rnd.Next())
+                .Take(BatchSize)
+                .ToArray();
 
-            // forward
-            var (phi, yi_pred) = Forward(xi);
-            double delta = yi_pred - yi_true;
+            // Zero accumulators
+            double[] gradW = new double[N + 1];
+            double[,] gradV = new double[N, 3];
 
-            // update output weights
-            // W[0] is bias
-            W[0] -= Eta * delta;
-            for (int k = 0; k < N; k++)
-                W[k + 1] -= Eta * delta * phi[k];
-
-            // backpropagate to V
-            for (int k = 0; k < N; k++)
+            // Accumulate gradients over the batch
+            foreach (int i in batchIdx)
             {
-                double grad_k = delta * W[k + 1] * Dsigmoid(phi[k]);
-                V[k, 0] -= Eta * grad_k; // bias
-                V[k, 1] -= Eta * grad_k * xi[0];
-                V[k, 2] -= Eta * grad_k * xi[1];
+                var x = X[i];
+                double y_true = Y[i];
+                var (phi, y_pred) = Forward(x);
+                double delta = y_pred - y_true;
+
+                // Output-layer grads
+                gradW[0] += delta; // bias
+                for (int k = 0; k < N; k++)
+                    gradW[k + 1] += delta * phi[k];
+
+                // Hidden-layer grads
+                for (int k = 0; k < N; k++)
+                {
+                    double gk = delta * W[k + 1] * Dsigmoid(phi[k]);
+                    gradV[k, 0] += gk; // bias
+                    gradV[k, 1] += gk * x[0];
+                    gradV[k, 2] += gk * x[1];
+                }
             }
+
+            // Average and apply update
+            double scale = Eta / BatchSize;
+            for (int j = 0; j < W.Length; j++)
+                W[j] -= scale * gradW[j];
+            for (int k = 0; k < N; k++)
+                for (int j = 0; j < 3; j++)
+                    V[k, j] -= scale * gradV[k, j];
         }
     }
 
     public double[] Predict(double[][] X)
     {
-        int M = X.Length;
-        var preds = new double[M];
-        for (int i = 0; i < M; i++)
-            preds[i] = Forward(X[i]).y;
-        return preds;
+        return X.Select(x => Forward(x).y).ToArray();
     }
 }

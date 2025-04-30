@@ -21,9 +21,10 @@ public static class Utils
         for (int i = 0; i < M; i++)
         {
             var parts = lines[i].Split(',');
-            X[i] = new double[2];
-            X[i][0] = double.Parse(parts[0], CultureInfo.InvariantCulture);
-            X[i][1] = double.Parse(parts[1], CultureInfo.InvariantCulture);
+            X[i] = new[] {
+                double.Parse(parts[0], CultureInfo.InvariantCulture),
+                double.Parse(parts[1], CultureInfo.InvariantCulture)
+            };
             y[i] = double.Parse(parts[2], CultureInfo.InvariantCulture);
         }
 
@@ -74,11 +75,9 @@ public static class Utils
 
     public static double[] LoadVector(string path)
     {
-        var lines = File.ReadAllLines(path)
-                        .Where(l => !string.IsNullOrWhiteSpace(l))
-                        .ToArray();
-        return lines
-            .Select(l => double.Parse(l, CultureInfo.InvariantCulture))
-            .ToArray();
+        return File.ReadAllLines(path)
+                   .Where(l => !string.IsNullOrWhiteSpace(l))
+                   .Select(l => double.Parse(l, CultureInfo.InvariantCulture))
+                   .ToArray();
     }
 }
