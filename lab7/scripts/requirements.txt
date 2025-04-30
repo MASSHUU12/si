@@ -26,6 +26,7 @@ fros==1.1
 humanize==4.12.0
 idna==3.10
 iso639==0.1.4
+joblib==1.4.2
 jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
 kiwisolver==1.4.8
@@ -85,6 +86,8 @@ requests-ftp==0.3.1
 rpds-py==0.23.1
 rpm==4.20.1
 rpmconf==1.1.11
+scikit-learn==1.6.1
+scipy==1.15.2
 selinux @ file:///builddir/build/BUILD/libselinux-3.8-build/libselinux-3.8/src
 sepolicy @ file:///builddir/build/BUILD/policycoreutils-3.8-build/selinux-3.8/python/sepolicy
 setools==4.5.1
@@ -95,6 +98,7 @@ six==1.17.0
 sos==4.8.2
 soupsieve==2.6
 systemd-python==235
+threadpoolctl==3.6.0
 typing_extensions==4.12.2
 tzdata==2025.2
 urllib3==2.3.0

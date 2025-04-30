@@ -94,11 +94,22 @@ class Program
             MlpNetwork mlp = new(V, W);
 
             double[] y_pred = mlp.Predict(X_test);
+
+            // Write CSV to stdout
+            //    so that `dotnet run … > predictions.csv` gives:
+            //      y_pred
+            //      0.12345
+            //      0.67890
+            //      …
+            Console.WriteLine("y_pred");
+            foreach (var p in y_pred)
+                Console.WriteLine(p.ToString("G17", CultureInfo.InvariantCulture));
+
+            // Compute and report MAE to stderr
             double mae = y_pred
                 .Zip(y_test, (pred, actual) => Math.Abs(pred - actual))
                 .Average();
-
-            Console.WriteLine($"Test MAE: {mae:F6}");
+            Console.Error.WriteLine($"Test MAE: {mae:F6}");
         }
     }
 }
