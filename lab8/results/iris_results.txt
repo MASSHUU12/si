@@ -1,0 +1,23 @@
+=== Data exploration ===
+Total samples: 150
+Number of features: 4
+Class distribution:
+  Class Iris-setosa: 50 samples
+  Class Iris-versicolor: 50 samples
+  Class Iris-virginica: 50 samples
+Missing values per feature: [0 0 0 0]
+
+=== Discrete Naive Bayes ===
+Parameters: n_bins=20, laplace=True
+Custom NaiveBayesDiscrete accuracy: 0.9778
+sklearn CategoricalNB accuracy:     0.9778
+
+=== Continuous (Gaussian) Naive Bayes ===
+Custom NaiveBayesContinuous accuracy: 0.9778
+sklearn GaussianNB accuracy:          0.9778
+
+=== Bin count sensitivity ===
+n_bins =  2 -> accuracy = 0.7333
+n_bins =  5 -> accuracy = 0.9333
+n_bins = 10 -> accuracy = 0.9556
+n_bins = 20 -> accuracy = 0.9778

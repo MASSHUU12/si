@@ -1,0 +1,23 @@
+=== Data exploration ===
+Total samples: 178
+Number of features: 13
+Class distribution:
+  Class 1: 59 samples
+  Class 2: 71 samples
+  Class 3: 48 samples
+Missing values per feature: [0 0 0 0 0 0 0 0 0 0 0 0 0]
+
+=== Discrete Naive Bayes ===
+Parameters: n_bins=20, laplace=True
+Custom NaiveBayesDiscrete accuracy: 0.9815
+sklearn CategoricalNB accuracy:     0.9815
+
+=== Continuous (Gaussian) Naive Bayes ===
+Custom NaiveBayesContinuous accuracy: 0.9630
+sklearn GaussianNB accuracy:          0.9630
+
+=== Bin count sensitivity ===
+n_bins =  2 -> accuracy = 0.9074
+n_bins =  5 -> accuracy = 0.9630
+n_bins = 10 -> accuracy = 1.0000
+n_bins = 20 -> accuracy = 0.9815
