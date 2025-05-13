@@ -7,7 +7,15 @@ Class distribution:
   Class 3: 48 samples
 Missing values per feature: [0 0 0 0 0 0 0 0 0 0 0 0 0]
 
-=== Discrete Naive Bayes ===
+=== Train/Test split ===
+Train samples: 124 (70%)
+Test  samples: 54 (30%)
+
+=== Discrete Naive Bayes (no Laplace vs. Laplace) ===
+Parameters: n_bins=20, laplace=False
+Custom NaiveBayesDiscrete accuracy: 0.9444
+sklearn CategoricalNB accuracy:     0.9815
+
 Parameters: n_bins=20, laplace=True
 Custom NaiveBayesDiscrete accuracy: 0.9815
 sklearn CategoricalNB accuracy:     0.9815

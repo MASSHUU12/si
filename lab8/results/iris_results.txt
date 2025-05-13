@@ -7,7 +7,15 @@ Class distribution:
   Class Iris-virginica: 50 samples
 Missing values per feature: [0 0 0 0]
 
-=== Discrete Naive Bayes ===
+=== Train/Test split ===
+Train samples: 105 (70%)
+Test  samples: 45 (30%)
+
+=== Discrete Naive Bayes (no Laplace vs. Laplace) ===
+Parameters: n_bins=20, laplace=False
+Custom NaiveBayesDiscrete accuracy: 0.9556
+sklearn CategoricalNB accuracy:     0.9778
+
 Parameters: n_bins=20, laplace=True
 Custom NaiveBayesDiscrete accuracy: 0.9778
 sklearn CategoricalNB accuracy:     0.9778

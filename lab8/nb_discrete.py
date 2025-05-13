@@ -50,10 +50,15 @@ class NaiveBayesDiscrete(BaseEstimator, ClassifierMixin):
         log_priors = np.log(self.priors_)
         log_proba = np.zeros((n_samples, n_classes))
 
+        # small floor to avoid log(0)
+        eps = 1e-9
+
         for c_idx in range(n_classes):
             log_p = log_priors[c_idx]
             for j in range(n_features):
                 prob_j = self.cond_prob_[j][c_idx, Xb[:, j]]
+                # clip to avoid zero
+                prob_j = np.clip(prob_j, eps, None)
                 log_p += np.log(prob_j)
             log_proba[:, c_idx] = log_p
 

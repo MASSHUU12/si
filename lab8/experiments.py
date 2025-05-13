@@ -11,7 +11,7 @@ from nb_continuous import NaiveBayesContinuous
 from sklearn.naive_bayes import CategoricalNB, GaussianNB
 import argparse
 
-def load_data(path, delimiter=",", csv=False, label_col=0):
+def load_data(path: str, delimiter=",", csv=False, label_col=0):
     """
     Load a dataset from .data or .csv.
     - csv=False: legacy UCI-style loader (first col = label, no header)
@@ -25,7 +25,6 @@ def load_data(path, delimiter=",", csv=False, label_col=0):
         else:
             label_name = label_col
 
-        # Separate label
         y = df[label_name].values
         X_df = df.drop(labels=[label_name], axis=1)
 
@@ -33,16 +32,12 @@ def load_data(path, delimiter=",", csv=False, label_col=0):
         for col in X_df.select_dtypes(include=['object', 'category']).columns:
             X_df[col] = LabelEncoder().fit_transform(X_df[col].astype(str))
 
-        X = X_df.values
-        return X, y
-
+        return X_df.values, y
     else:
         data = np.genfromtxt(path, delimiter=delimiter)
         if data.ndim == 1:
             data = data[np.newaxis, :]
-        y = data[:, 0]
-        X = data[:, 1:]
-        return X, y
+        return data[:, 1:], data[:, 0]
 
 def explore_data(X, y):
     print("=== Data exploration ===")
@@ -62,24 +57,25 @@ def explore_data(X, y):
     print("Missing values per feature:", np.sum(np.isnan(X), axis=0))
     print()
 
-def run_discrete_nb(X_train, X_test, y_train, y_test, n_bins=10, laplace=True):
-    print("=== Discrete Naive Bayes ===")
-    print(f"Parameters: n_bins={n_bins}, laplace={laplace}")
+def run_discrete_nb(X_train, X_test, y_train, y_test, n_bins=10):
+    print("=== Discrete Naive Bayes (no Laplace vs. Laplace) ===")
+    for laplace in (False, True):
+        print(f"Parameters: n_bins={n_bins}, laplace={laplace}")
+        # --- custom implementation ---
+        nbd = NaiveBayesDiscrete(n_bins=n_bins, laplace=laplace)
+        nbd.fit(X_train, y_train)
+        y_pred = nbd.predict(X_test)
+        acc_custom = accuracy_score(y_test, y_pred)
+        print(f"Custom NaiveBayesDiscrete accuracy: {acc_custom:.4f}")
 
-    nbd = NaiveBayesDiscrete(n_bins=n_bins, laplace=laplace)
-    nbd.fit(X_train, y_train)
-    y_pred = nbd.predict(X_test)
-    acc_custom = accuracy_score(y_test, y_pred)
-    print(f"Custom NaiveBayesDiscrete accuracy: {acc_custom:.4f}")
-
-    Xb_train = nbd._discretize(X_train)
-    Xb_test  = nbd._discretize(X_test)
-    sk_nbd = CategoricalNB()
-    sk_nbd.fit(Xb_train, y_train)
-    y_pred_sk = sk_nbd.predict(Xb_test)
-    acc_sklearn = accuracy_score(y_test, y_pred_sk)
-    print(f"sklearn CategoricalNB accuracy:     {acc_sklearn:.4f}")
-    print()
+        # --- sklearn’s CategoricalNB on the same discretization ---
+        Xb_train = nbd._discretize(X_train)
+        Xb_test  = nbd._discretize(X_test)
+        sk_nbd = CategoricalNB()
+        sk_nbd.fit(Xb_train, y_train)
+        y_pred_sk = sk_nbd.predict(Xb_test)
+        acc_sklearn = accuracy_score(y_test, y_pred_sk)
+        print(f"sklearn CategoricalNB accuracy:     {acc_sklearn:.4f}\n")
 
 def run_continuous_nb(X_train, X_test, y_train, y_test):
     print("=== Continuous (Gaussian) Naive Bayes ===")
@@ -97,10 +93,10 @@ def run_continuous_nb(X_train, X_test, y_train, y_test):
     print(f"sklearn GaussianNB accuracy:          {acc_sklearn:.4f}")
     print()
 
-def bin_sensitivity(X_train, X_test, y_train, y_test, bins_list, laplace):
+def bin_sensitivity(X_train, X_test, y_train, y_test, bins_list):
     print("=== Bin count sensitivity ===")
     for b in bins_list:
-        nbd = NaiveBayesDiscrete(n_bins=b, laplace=laplace).fit(X_train, y_train)
+        nbd = NaiveBayesDiscrete(n_bins=b, laplace=True).fit(X_train, y_train)
         acc = accuracy_score(y_test, nbd.predict(X_test))
         print(f"n_bins = {b:2d} -> accuracy = {acc:.4f}")
     print()
@@ -130,10 +126,6 @@ def main():
         "--bins", "-b", type=int, nargs="+", default=[2,5,10,20],
         help="List of bin counts for sensitivity (default 2 5 10 20)"
     )
-    p.add_argument(
-        "--laplace",  action="store_true",
-        help="Apply Laplace smoothing in discrete NB"
-    )
     args = p.parse_args()
 
     # Parse label_col: if digit, cast to int; else leave as string
@@ -154,16 +146,22 @@ def main():
         stratify=y
     )
 
+    n_train, n_test = len(y_train), len(y_test)
+    pct_train = 100*(1-args.test_size)
+    pct_test  = 100*args.test_size
+    print("=== Train/Test split ===")
+    print(f"Train samples: {n_train} ({pct_train:.0f}%)")
+    print(f"Test  samples: {n_test} ({pct_test:.0f}%)")
+    print()
+
     run_discrete_nb(
         X_train, X_test, y_train, y_test,
         n_bins=max(args.bins),
-        laplace=args.laplace
     )
     run_continuous_nb(X_train, X_test, y_train, y_test)
     bin_sensitivity(
         X_train, X_test, y_train, y_test,
         bins_list=args.bins,
-        laplace=args.laplace
     )
 
 if __name__ == "__main__":
