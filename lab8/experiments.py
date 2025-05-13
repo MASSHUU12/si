@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, log_loss
 from sklearn.preprocessing import LabelEncoder
 
 from nb_discrete import NaiveBayesDiscrete
@@ -75,7 +75,22 @@ def run_discrete_nb(X_train, X_test, y_train, y_test, n_bins=10):
         sk_nbd.fit(Xb_train, y_train)
         y_pred_sk = sk_nbd.predict(Xb_test)
         acc_sklearn = accuracy_score(y_test, y_pred_sk)
-        print(f"sklearn CategoricalNB accuracy:     {acc_sklearn:.4f}\n")
+        print(f"sklearn CategoricalNB accuracy:     {acc_sklearn:.4f}")
+
+        # --- log‐likelihood variant ---
+        log_proba = nbd.predict_log_proba(X_test)
+        y_pred_log = nbd.classes_[np.argmax(log_proba, axis=1)]
+        acc_log = accuracy_score(y_test, y_pred_log)
+        print(f"Log‐likelihood argmax accuracy: {acc_log:.4f}")
+
+        # --- predict_proba demonstration & log‐loss ---
+        print("First 5 custom proba:", nbd.predict_proba(X_test[:5]))
+        print("Log-loss (custom):",
+              log_loss(y_test, nbd.predict_proba(X_test), labels=nbd.classes_))
+        print("First 5 sklearn proba:", sk_nbd.predict_proba(Xb_test[:5]))
+        print("Log-loss (sklearn):",
+              log_loss(y_test, sk_nbd.predict_proba(Xb_test), labels=sk_nbd.classes_))
+        print()
 
 def run_continuous_nb(X_train, X_test, y_train, y_test):
     print("=== Continuous (Gaussian) Naive Bayes ===")

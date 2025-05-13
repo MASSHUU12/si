@@ -81,3 +81,25 @@ class NaiveBayesDiscrete(BaseEstimator, ClassifierMixin):
         for j, edges in enumerate(self.bin_edges_):
             Xb[:, j] = np.digitize(X[:, j], edges, right=False)
         return Xb
+
+    def predict_log_proba(self, X):
+        """
+        Return the joint log‐likelihoods log P(c) + sum_j log P(x_j|c)
+        (i.e. before any softmax normalization).
+        """
+        Xb = self._discretize(X)
+        n_samples, n_features = Xb.shape
+        n_classes = len(self.classes_)
+
+        log_priors = np.log(self.priors_)
+        log_proba = np.zeros((n_samples, n_classes))
+
+        for c_idx in range(n_classes):
+            lp = log_priors[c_idx]
+            for j in range(n_features):
+                pj = self.cond_prob_[j][c_idx, Xb[:, j]]
+                pj = np.clip(pj, 1e-9, None)
+                lp = lp + np.log(pj)
+            log_proba[:, c_idx] = lp
+
+        return log_proba
