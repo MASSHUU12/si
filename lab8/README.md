@@ -43,7 +43,7 @@ Następnie przeprowadzono eksperymenty podstawowe (70% danych uczących,
 
 ## 4. Eksperymenty podstawowe
 
-Dokładne wyniki można znaleźć w folderze [results](./results).
+Dokładne wyniki można znaleźć w folderze [results](https://github.com/MASSHUU12/si/tree/master/lab8/results).
 
 ### 4.1 NBC dyskretny
 
